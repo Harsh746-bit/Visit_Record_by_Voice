@@ -583,6 +583,9 @@ async def create_visit_record(record_payload: Dict[str, Any], db: Session = Depe
 
     # Add evidence spans
     spans_data = record_payload.get("evidence_spans", [])
+    if not spans_data and rec.transcript:
+        _, spans_data = extract_evidence_and_vitals(rec.transcript)
+
     for s in spans_data:
         span = EvidenceSpan(
             visit_record_id=rec.id,

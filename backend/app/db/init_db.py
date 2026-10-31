@@ -114,11 +114,12 @@ def init_db(db: Session = None):
         # 2. Seed Beneficiaries
         for b_data in SYNTHETIC_BENEFICIARIES:
             existing_ben = db.query(Beneficiary).filter(Beneficiary.id == b_data["id"]).first()
-            if not existing_ben:
-                hr_reasons = b_data.get("high_risk_reasons")
-                if isinstance(hr_reasons, list):
-                    hr_reasons = ", ".join(hr_reasons)
+            hr_flag = b_data.get("is_high_risk", b_data.get("high_risk", False))
+            hr_reasons = b_data.get("high_risk_reasons")
+            if isinstance(hr_reasons, list):
+                hr_reasons = ", ".join(hr_reasons)
 
+            if not existing_ben:
                 ben = Beneficiary(
                     id=b_data["id"],
                     rch_id=b_data.get("rch_id", f"MH-RCH-{b_data['id']}"),
@@ -128,7 +129,7 @@ def init_db(db: Session = None):
                     category=b_data.get("category", "ANC"),
                     gestational_weeks=b_data.get("gestational_weeks", 20),
                     edd=b_data.get("edd"),
-                    is_high_risk=b_data.get("is_high_risk", False),
+                    is_high_risk=hr_flag,
                     high_risk_reasons=hr_reasons,
                     assigned_asha_id=b_data.get("assigned_asha_id", "ASHA-PUN-104"),
                     village=b_data.get("village", "Khed Shivapur"),
@@ -136,6 +137,9 @@ def init_db(db: Session = None):
                     contact_phone=b_data.get("contact_phone", "+91 98000 00000")
                 )
                 db.add(ben)
+            else:
+                existing_ben.is_high_risk = hr_flag
+                existing_ben.high_risk_reasons = hr_reasons
 
         db.commit()
 
