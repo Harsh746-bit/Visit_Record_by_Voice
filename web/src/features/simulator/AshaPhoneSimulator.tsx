@@ -29,6 +29,7 @@ import { Beneficiary, StructuredVisit } from '../../types';
 import { StatusBadge } from '../../components/common/Badge';
 import { mockDataService } from '../../services/mockDataService';
 import { translations } from '../../i18n/translations';
+import appLogo from '../../assets/app_logo.png';
 
 export type AshaScreenId = 
   | 'splash'
@@ -184,9 +185,11 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                 <span className="text-[11px] text-slate-400 font-mono">v1.0.0</span>
               </div>
               <div className="space-y-4">
-                <div className="w-20 h-20 mx-auto rounded-3xl bg-[#087F8C] text-white flex items-center justify-center shadow-lg shadow-teal-700/20">
-                  <Mic className="w-10 h-10" />
-                </div>
+                <img 
+                  src={appLogo} 
+                  alt="Visit Record Logo" 
+                  className="w-24 h-24 mx-auto rounded-3xl object-cover shadow-lg border border-teal-100" 
+                />
                 <div>
                   <h1 className="text-2xl font-black text-[#172B3A] tracking-tight">{t.appTitle}</h1>
                   <p className="text-sm font-semibold text-[#087F8C] mt-1 font-devanagari">{t.tagline}</p>
@@ -266,9 +269,11 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
           {currentScreen === 'login' && (
             <div className="flex-1 flex flex-col justify-between p-6 bg-white">
               <div className="mt-4">
-                <div className="w-12 h-12 rounded-2xl bg-teal-50 text-[#087F8C] flex items-center justify-center mb-3">
-                  <User className="w-6 h-6" />
-                </div>
+                <img 
+                  src={appLogo} 
+                  alt="Logo" 
+                  className="w-14 h-14 rounded-2xl object-cover border border-teal-100 shadow-xs mb-3" 
+                />
                 <h2 className="text-xl font-bold text-[#172B3A] font-devanagari">आशा कार्यकर्ता लॉगिन</h2>
                 <p className="text-xs text-slate-500 mt-0.5">ASHA Frontline Mobile Authentication</p>
               </div>

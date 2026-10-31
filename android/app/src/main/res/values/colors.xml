@@ -1,0 +1,12 @@
+<resources>
+    <color name="primary_teal">#087F8C</color>
+    <color name="secondary_green">#15966A</color>
+    <color name="main_background">#F7FAFA</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="primary_text">#172B3A</color>
+    <color name="secondary_text">#718096</color>
+    <color name="border_color">#E4ECEC</color>
+    <color name="warning_amber">#E8A23A</color>
+    <color name="danger_red">#DC5B5B</color>
+    <color name="success_green">#15966A</color>
+</resources>
