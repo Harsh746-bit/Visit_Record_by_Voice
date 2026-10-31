@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './hooks/useAuth';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { OverviewView } from './features/dashboard/OverviewView';
 import { WorkersDirectoryView } from './features/workers/WorkersDirectoryView';
@@ -8,33 +10,68 @@ import { SplitEvidenceReviewView } from './features/evidence/SplitEvidenceReview
 import { ReportsAnalyticsView } from './features/reports/ReportsAnalyticsView';
 import { AnmSettingsView } from './features/settings/AnmSettingsView';
 import { AshaPhoneSimulator } from './features/simulator/AshaPhoneSimulator';
-import { mockDataService } from './services/mockDataService';
-import { ViewMode, AnmNavigationTab, StructuredVisit } from './types';
+import { LoginView } from './features/auth/LoginView';
+import { liveDataService } from './services/liveDataService';
+import { ViewMode, AnmNavigationTab, StructuredVisit, Beneficiary, AshaWorker } from './types';
+import { MOCK_WORKERS, MOCK_BENEFICIARIES, MOCK_VISIT_RECORDS } from './data/mockData';
 import { ShieldCheck } from 'lucide-react';
 
-export default function App() {
+function AppContent() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [guestMode, setGuestMode] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<ViewMode>('anm');
   const [activeTab, setActiveTab] = useState<AnmNavigationTab>('overview');
   const [selectedRecord, setSelectedRecord] = useState<StructuredVisit | null>(null);
-  const [records, setRecords] = useState<StructuredVisit[]>(() => mockDataService.getRecords());
+  const [records, setRecords] = useState<StructuredVisit[]>([...MOCK_VISIT_RECORDS]);
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([...MOCK_BENEFICIARIES]);
+  const [workers, setWorkers] = useState<AshaWorker[]>([...MOCK_WORKERS]);
   const [lang, setLang] = useState<'mr' | 'hi' | 'en'>('mr');
 
-  const workers = mockDataService.getWorkers();
-  const beneficiaries = mockDataService.getBeneficiaries();
+  // Load live data from FastAPI PostgreSQL backend
+  useEffect(() => {
+    liveDataService.getRecords().then(setRecords);
+    liveDataService.getBeneficiaries().then(setBeneficiaries);
+    liveDataService.getWorkers().then(setWorkers);
+  }, [isAuthenticated]);
+
   const pendingCount = records.filter(r => r.anmReviewStatus === 'pending').length;
 
-  const handleUpdateRecordStatus = (recordId: string, status: 'reviewed' | 'returned', notes: string) => {
-    const updated = mockDataService.updateReviewStatus(recordId, status, notes);
+  const handleUpdateRecordStatus = async (recordId: string, status: 'reviewed' | 'returned', notes: string) => {
+    const updated = await liveDataService.updateReviewStatus(recordId, status, notes);
     if (updated) {
-      setRecords(mockDataService.getRecords());
+      setRecords(await liveDataService.getRecords());
       setSelectedRecord(updated);
     }
   };
 
-  const handleNewRecordSubmitted = (_newRecord: StructuredVisit) => {
-    setRecords(mockDataService.getRecords());
+  const handleNewRecordSubmitted = async (_newRecord: StructuredVisit) => {
+    const updatedRecords = await liveDataService.getRecords();
+    setRecords(updatedRecords);
   };
 
+  // 1. Initial auth loading spinner
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#F7FAFA] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-3 border-[#087F8C]/30 border-t-[#087F8C] rounded-full animate-spin" />
+          <p className="text-xs text-slate-500 font-medium">प्रणाली लोड होत आहे...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated Gate: Show Login Screen
+  if (!isAuthenticated && !guestMode) {
+    return (
+      <LoginView
+        onSuccess={() => setGuestMode(false)}
+        onContinueAsGuest={() => setGuestMode(true)}
+      />
+    );
+  }
+
+  // 3. Authenticated Dashboard Layout
   return (
     <DashboardLayout
       viewMode={viewMode}
@@ -158,5 +195,13 @@ export default function App() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

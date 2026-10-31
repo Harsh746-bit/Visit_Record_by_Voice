@@ -1,6 +1,7 @@
 import React from 'react';
-import { Smartphone, Monitor, Split, Globe } from 'lucide-react';
+import { Smartphone, Monitor, Split, Globe, LogOut } from 'lucide-react';
 import { ViewMode } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
 import appLogo from '../../assets/app_logo.png';
 
 interface HeaderProps {
@@ -16,6 +17,16 @@ export const Header: React.FC<HeaderProps> = ({
   lang,
   onChangeLang
 }) => {
+  const { user, logout } = useAuth();
+  const displayName = user ? (user.full_name_mr || user.full_name) : 'Sujata Deshmukh';
+  const roleTitle = user ? `${user.role} (${user.phc || 'Khed PHC'})` : 'ANM Supervisor (Khed PHC)';
+  const initials = displayName
+    .split(' ')
+    .map(p => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <header className="bg-white border-b border-[#E4ECEC] sticky top-0 z-40 shadow-2xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
@@ -92,15 +103,22 @@ export const Header: React.FC<HeaderProps> = ({
             </select>
           </div>
 
-          {/* User Badge */}
+          {/* User Badge & Logout */}
           <div className="hidden sm:flex items-center gap-2.5 pl-2 border-l border-slate-200">
             <div className="w-8 h-8 rounded-full bg-teal-100 text-[#087F8C] font-bold flex items-center justify-center text-xs">
-              SD
+              {initials}
             </div>
             <div className="text-left text-xs">
-              <div className="font-bold text-[#172B3A]">Sujata Deshmukh</div>
-              <span className="text-[10px] text-slate-500">ANM Supervisor (Khed PHC)</span>
+              <div className="font-bold text-[#172B3A]">{displayName}</div>
+              <span className="text-[10px] text-slate-500">{roleTitle}</span>
             </div>
+            <button
+              onClick={() => logout()}
+              title="लॉग आऊट (Logout)"
+              className="p-1.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
