@@ -29,6 +29,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.visitrecord.app.data.local.DraftVisit
+import com.visitrecord.app.data.remote.CreateVisitRequest
+import com.visitrecord.app.data.remote.EvidenceSpanDto
+import com.visitrecord.app.data.repository.AppRepository
+import kotlinx.coroutines.launch
 import com.visitrecord.app.R
 import com.visitrecord.app.data.model.AshaUserProfile
 import com.visitrecord.app.data.model.Beneficiary
@@ -259,10 +265,18 @@ fun LoginScreen(
     currentUser: AshaUserProfile,
     onLoginSuccess: (AshaUserProfile) -> Unit
 ) {
+    val context = LocalContext.current
+    val repository = remember { AppRepository(context) }
+    val coroutineScope = rememberCoroutineScope()
+
     var name by remember { mutableStateOf(currentUser.name) }
-    var phone by remember { mutableStateOf(currentUser.phone) }
+    var phone by remember { mutableStateOf("+91 98810 99401") }
     var subCenter by remember { mutableStateOf(currentUser.subCenter) }
-    var pin by remember { mutableStateOf("1234") }
+    var pin by remember { mutableStateOf("Asha@1234") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var serverUrl by remember { mutableStateOf(repository.getTokenManager().getServerUrl()) }
+    var showServerConfig by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -304,6 +318,23 @@ fun LoginScreen(
             textAlign = TextAlign.Center
         )
 
+        if (errorMessage != null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFFFEBEE),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE57373))
+            ) {
+                Text(
+                    text = errorMessage!!,
+                    color = Color(0xFFC62828),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(12.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
         // Quick Demo Profile Selector Chips
         Text(
             text = "झटपट डेमो प्रोफाइल (Quick Select):",
@@ -322,12 +353,13 @@ fun LoginScreen(
                     .weight(1f)
                     .clickable {
                         name = "रुक्मिणी जाधव"
-                        phone = "+91 98221 45012"
+                        phone = "+91 98810 99401"
                         subCenter = "खेड शिवापूर उपकेंद्र, पुणे"
+                        pin = "Asha@1234"
                     },
                 shape = RoundedCornerShape(12.dp),
-                color = if (name.contains("रुक्मिणी")) PrimaryTealContainer else Color.White,
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (name.contains("रुक्मिणी")) PrimaryTeal else BorderColor)
+                color = if (phone.contains("98810")) PrimaryTealContainer else Color.White,
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (phone.contains("98810")) PrimaryTeal else BorderColor)
             ) {
                 Column(modifier = Modifier.padding(10.dp)) {
                     Text("रुक्मिणी जाधव", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = PrimaryText)
@@ -342,10 +374,11 @@ fun LoginScreen(
                         name = "सुरेखा मोरे"
                         phone = "+91 94220 88219"
                         subCenter = "त्र्यंबकेश्वर उपकेंद्र, नाशिक"
+                        pin = "Asha@1234"
                     },
                 shape = RoundedCornerShape(12.dp),
-                color = if (name.contains("सुरेखा")) PrimaryTealContainer else Color.White,
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (name.contains("सुरेखा")) PrimaryTeal else BorderColor)
+                color = if (phone.contains("88219")) PrimaryTealContainer else Color.White,
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (phone.contains("88219")) PrimaryTeal else BorderColor)
             ) {
                 Column(modifier = Modifier.padding(10.dp)) {
                     Text("सुरेखा मोरे", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = PrimaryText)
@@ -399,7 +432,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = pin,
             onValueChange = { pin = it },
-            label = { Text("सुरक्षा पिन (Security PIN)") },
+            label = { Text("सुरक्षा पिन / पासवर्ड (Password)") },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = PrimaryTeal) },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
@@ -410,28 +443,94 @@ fun LoginScreen(
             )
         )
 
+        // Backend Server URL Configuration toggle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "सर्व्हर कॉन्फिगरेशन (Backend Server)",
+                style = MaterialTheme.typography.labelSmall,
+                color = SecondaryText
+            )
+            TextButton(onClick = { showServerConfig = !showServerConfig }) {
+                Text(
+                    text = if (showServerConfig) "लपवा" else "बदला",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PrimaryTeal
+                )
+            }
+        }
+
+        if (showServerConfig) {
+            OutlinedTextField(
+                value = serverUrl,
+                onValueChange = {
+                    serverUrl = it
+                    repository.getTokenManager().setServerUrl(it)
+                },
+                label = { Text("FastAPI Server URL (Default: 10.0.2.2:8000)") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
 
         Button(
             onClick = {
-                val updated = currentUser.copy(
-                    name = name.ifBlank { "रुक्मिणी जाधव" },
-                    phone = phone.ifBlank { "+91 98221 45012" },
-                    subCenter = subCenter.ifBlank { "खेड शिवापूर उपकेंद्र" }
-                )
-                onLoginSuccess(updated)
+                isLoading = true
+                errorMessage = null
+                repository.getTokenManager().setServerUrl(serverUrl)
+
+                coroutineScope.launch {
+                    val result = repository.login(phone, pin)
+                    isLoading = false
+                    result.onSuccess { userDto ->
+                        val updated = currentUser.copy(
+                            id = userDto.id,
+                            name = userDto.fullNameMr ?: userDto.fullName,
+                            phone = userDto.phone,
+                            subCenter = userDto.subCenter ?: subCenter,
+                            phc = userDto.phc ?: currentUser.phc
+                        )
+                        onLoginSuccess(updated)
+                    }.onFailure { error ->
+                        val isOffline = error.message?.contains("failed to connect", ignoreCase = true) == true ||
+                                        error.message?.contains("connect", ignoreCase = true) == true ||
+                                        error.message?.contains("timeout", ignoreCase = true) == true
+
+                        if (isOffline) {
+                            // Offline frontline mode
+                            val updated = currentUser.copy(
+                                name = name.ifBlank { "रुक्मिणी जाधव" },
+                                phone = phone.ifBlank { "+91 98810 99401" },
+                                subCenter = subCenter.ifBlank { "खेड शिवापूर उपकेंद्र" }
+                            )
+                            onLoginSuccess(updated)
+                        } else {
+                            errorMessage = "प्रमाणीकरण अयशस्वी: ${error.message ?: "अवैध मोबाईल क्रमांक किंवा पासवर्ड."}"
+                        }
+                    }
+                }
             },
+            enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(54.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
         ) {
-            Text(
-                text = "लॉगिन करा • Login",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            if (isLoading) {
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else {
+                Text(
+                    text = "लॉगिन करा • Login",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
@@ -753,6 +852,10 @@ fun BeneficiaryListScreen(
     onSelectBeneficiary: (String) -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val repository = remember { AppRepository(context) }
+    var isLoading by remember { mutableStateOf(false) }
+
     var searchQuery by remember { mutableStateOf("") }
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -762,11 +865,39 @@ fun BeneficiaryListScreen(
 
     val beneficiaries = remember {
         mutableStateListOf(
-            Beneficiary("BEN-1", "Sunita Shinde", "सुनिता संजय शिंदे", 24, "खेड शिवापूर", "शिवापूर", "ANC", 28, true, "MH-PUN-0912", "+91 98221 45012"),
+            Beneficiary("BEN-1", "Sunita Shinde", "सुनिता संजय शिंदे", 24, "खेड शिवापूर", "शिवापूर", "ANC", 28, true, "MH-PUN-0912", "+91 98810 99401"),
             Beneficiary("BEN-2", "Pooja Patil", "पूजा राहुल पाटील", 21, "वडगाव बुद्रुक", "धायरी", "ANC", 16, false, "MH-PUN-1184", "+91 94220 88219"),
             Beneficiary("BEN-3", "Kavita Gaikwad", "कविता रमेश गायकवाड", 27, "शिवापूर वस्ती", "शिवापूर", "PNC", null, true, "MH-PUN-0742", "+91 98500 12345"),
             Beneficiary("BEN-4", "Anita Jadhav", "अनिता विठ्ठल जाधव", 23, "खेड शिवापूर", "शिवापूर", "ANC", 32, false, "MH-PUN-0991", "+91 97654 32100")
         )
+    }
+
+    LaunchedEffect(Unit) {
+        isLoading = true
+        val result = repository.fetchBeneficiaries()
+        isLoading = false
+        result.onSuccess { dtoList ->
+            if (dtoList.isNotEmpty()) {
+                beneficiaries.clear()
+                dtoList.forEach { dto ->
+                    beneficiaries.add(
+                        Beneficiary(
+                            id = dto.id,
+                            name = dto.name,
+                            nameMr = dto.nameMr,
+                            age = dto.age,
+                            village = dto.village,
+                            subCenter = dto.subCenter,
+                            category = dto.category,
+                            gestationalWeeks = dto.gestationalWeeks,
+                            isHighRisk = dto.isHighRisk,
+                            rchId = dto.rchId,
+                            contactPhone = dto.contactPhone
+                        )
+                    )
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -1299,7 +1430,11 @@ fun ValidationScreen(
     onFinalSubmit: () -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val repository = remember { AppRepository(context) }
+    val coroutineScope = rememberCoroutineScope()
     var isConfirmed by remember { mutableStateOf(false) }
+    var isSubmitting by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -1383,19 +1518,72 @@ fun ValidationScreen(
         }
 
         Button(
-            onClick = onFinalSubmit,
-            enabled = isConfirmed,
+            onClick = {
+                isSubmitting = true
+                val draftId = "REC-PUN-${System.currentTimeMillis() % 100000}"
+                
+                // 1. Save locally in SQLite immediately (Offline-First resilience)
+                val localDraft = DraftVisit(
+                    id = draftId,
+                    beneficiaryId = "BEN-MH-PUN-0841",
+                    beneficiaryName = "सुनिता संजय शिंदे",
+                    language = "mr-IN",
+                    transcript = "सुनिता शिंदे, वय २४ वर्षे, २८ आठवडे गरोदर आहेत. रक्तदाब १४०/९५ एवढा जास्त आला आहे आणि डोकेदुखी आहे. वजन ५४ किलो भरले आहे. हिमोग्लोबिन १०.२ ग्रॅम आहे. बाळाची हालचाल व्यवस्थित आहे. त्यांना खेड शिवापूर ग्रामीण रुग्णालयात पाठवले आहे.",
+                    bpSystolic = 140,
+                    bpDiastolic = 95,
+                    weightKg = 54.0f,
+                    hemoglobinGDl = 10.2f,
+                    gestationalWeeks = 28,
+                    headache = true,
+                    pedalEdema = true,
+                    fetalMovementNormal = true,
+                    syncStatus = "SYNC_PENDING"
+                )
+                repository.saveLocalDraft(localDraft)
+
+                // 2. Dispatch to FastAPI PostgreSQL backend
+                coroutineScope.launch {
+                    val createReq = CreateVisitRequest(
+                        beneficiaryId = "BEN-MH-PUN-0841",
+                        ashaId = repository.getTokenManager().getUserId(),
+                        language = "mr-IN",
+                        transcript = localDraft.transcript,
+                        bpSystolic = localDraft.bpSystolic,
+                        bpDiastolic = localDraft.bpDiastolic,
+                        weightKg = localDraft.weightKg,
+                        hemoglobinGDl = localDraft.hemoglobinGDl,
+                        gestationalWeeks = localDraft.gestationalWeeks,
+                        headache = localDraft.headache,
+                        pedalEdema = localDraft.pedalEdema,
+                        fetalMovementNormal = localDraft.fetalMovementNormal,
+                        evidenceSpans = listOf(
+                            EvidenceSpanDto("blood_pressure", "140/95 mmHg", 49, 74, "रक्तदाब १४०/९५ एवढा जास्त आला आहे", 0.98f, "concerning"),
+                            EvidenceSpanDto("weight", "54 kg", 96, 113, "वजन ५४ किलो भरले आहे", 0.99f, "extracted"),
+                            EvidenceSpanDto("hemoglobin", "10.2 g/dL", 115, 137, "हिमोग्लोबिन १०.२ ग्रॅम आहे", 0.96f, "extracted"),
+                            EvidenceSpanDto("headache", "Reported (Severe)", 79, 94, "डोकेदुखी आहे", 0.95f, "concerning")
+                        )
+                    )
+                    repository.submitVisitRecord(createReq, draftId)
+                    isSubmitting = false
+                    onFinalSubmit()
+                }
+            },
+            enabled = isConfirmed && !isSubmitting,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(54.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = SecondaryGreen)
         ) {
-            Text(
-                text = "अंतिम खात्री व सबमिट करा",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            if (isSubmitting) {
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else {
+                Text(
+                    text = "अंतिम खात्री व सबमिट करा",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
@@ -1484,6 +1672,15 @@ fun ConfirmationScreen(
 fun VisitHistoryScreen(
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val repository = remember { AppRepository(context) }
+    val localDrafts = remember { mutableStateListOf<DraftVisit>() }
+
+    LaunchedEffect(Unit) {
+        localDrafts.clear()
+        localDrafts.addAll(repository.getLocalDrafts())
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -1505,6 +1702,17 @@ fun VisitHistoryScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Live Local SQLite Drafts first
+            items(localDrafts) { draft ->
+                HistoryRecordCard(
+                    patientName = draft.beneficiaryName,
+                    date = "स्थानिक नोंद • ${if (draft.syncStatus == "SYNCED") "सर्व्हरवर सिंक पूर्ण" else "सिंक प्रलंबित"}",
+                    vitals = "BP: ${draft.bpSystolic}/${draft.bpDiastolic} | Hb: ${draft.hemoglobinGDl ?: "--"} | वजन: ${draft.weightKg ?: "--"} किलो",
+                    status = if (draft.syncStatus == "SYNCED") "Synced to PostgreSQL" else "Local Draft (Offline)",
+                    isPending = draft.syncStatus != "SYNCED"
+                )
+            }
+
             item {
                 HistoryRecordCard(
                     patientName = "सुनिता संजय शिंदे",
@@ -1629,8 +1837,12 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            val context = LocalContext.current
             Button(
-                onClick = onLogout,
+                onClick = {
+                    AppRepository(context).getTokenManager().clearSession()
+                    onLogout()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
