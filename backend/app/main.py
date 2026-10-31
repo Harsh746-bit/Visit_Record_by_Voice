@@ -410,6 +410,24 @@ def extract_structured_record(payload: Dict[str, Any], db: Session = Depends(get
     # 1. Perform dynamic extraction from actual transcript
     dynamic_vitals, dynamic_spans = extract_evidence_and_vitals(transcript)
 
+    # Optional deep LLM extraction via Sarvam Indic 105b if requested
+    if payload.get("use_llm") and sarvam_extractor.is_available:
+        try:
+            llm_res = sarvam_extractor.extract_with_llm(transcript, language)
+            if llm_res.get("bp_systolic") is not None:
+                dynamic_vitals["bp_systolic"] = llm_res["bp_systolic"]
+            if llm_res.get("bp_diastolic") is not None:
+                dynamic_vitals["bp_diastolic"] = llm_res["bp_diastolic"]
+            if llm_res.get("weight_kg") is not None:
+                dynamic_vitals["weight_kg"] = llm_res["weight_kg"]
+            if llm_res.get("hemoglobin_g_dl") is not None:
+                dynamic_vitals["hemoglobin_g_dl"] = llm_res["hemoglobin_g_dl"]
+            if llm_res.get("evidence_spans"):
+                # Merge spans
+                dynamic_spans.extend([s for s in llm_res["evidence_spans"] if s not in dynamic_spans])
+        except Exception as e:
+            logger.warning(f"Live Sarvam LLM extraction error: {e}")
+
     # 2. Update measurements if extracted dynamically
     if dynamic_vitals["bp_systolic"] is not None:
         rec.measurements.blood_pressure_systolic.value = dynamic_vitals["bp_systolic"]
@@ -441,7 +459,7 @@ def extract_structured_record(payload: Dict[str, Any], db: Session = Depends(get
     rec.validation_warnings = validation_warnings
 
     return {
-        "structured_record": rec.dict(),
+        "structured_record": rec.model_dump() if hasattr(rec, "model_dump") else rec.dict(),
         "extracted_spans_count": len(rec.evidence_spans),
         "warnings_count": len(validation_warnings),
         "vitals_extracted": dynamic_vitals
@@ -482,6 +500,7 @@ def list_visit_records(
         results.append({
             "record_id": r.id,
             "visit_id": r.visit_id,
+            "visit_type": r.visit.visit_type.value if hasattr(r.visit.visit_type, "value") else str(r.visit.visit_type),
             "beneficiary_id": r.visit.beneficiary_id,
             "beneficiary_name": r.visit.beneficiary.full_name,
             "asha_id": r.visit.asha_id,
@@ -524,6 +543,8 @@ def get_visit_record(record_id: str, db: Session = Depends(get_db)):
     ]
     return {
         "record_id": r.id,
+        "visit_id": r.visit_id,
+        "visit_type": r.visit.visit_type.value if hasattr(r.visit.visit_type, "value") else str(r.visit.visit_type),
         "beneficiary_id": r.visit.beneficiary_id,
         "beneficiary_name": r.visit.beneficiary.full_name,
         "asha_id": r.visit.asha_id,
@@ -547,11 +568,13 @@ async def create_visit_record(record_payload: Dict[str, Any], db: Session = Depe
     """
     ben_id = record_payload.get("beneficiary_id", "BEN-MH-PUN-0841")
     asha_id = record_payload.get("asha_id", "ASHA-PUN-104")
+    v_type_raw = str(record_payload.get("visit_type", "ANC")).upper()
+    v_type = VisitType[v_type_raw] if v_type_raw in VisitType.__members__ else VisitType.ANC
     
     visit = Visit(
         beneficiary_id=ben_id,
         asha_id=asha_id,
-        visit_type=VisitType.ANC,
+        visit_type=v_type,
         encounter_date=datetime.now(timezone.utc),
         sync_status="synced"
     )

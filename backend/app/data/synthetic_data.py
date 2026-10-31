@@ -294,5 +294,133 @@ DEMO_VISIT_SCENARIOS = {
                 "status": "extracted"
             }
         ]
+    },
+    "marathi_pnc_visit": {
+        "title": "Anjali More — PNC Visit (Marathi - Normal)",
+        "language": "mr-IN",
+        "beneficiary_id": "BEN-MH-PUN-0845",
+        "asha_id": "ASHA-PUN-104",
+        "visit_type": "PNC",
+        "transcript": "आज मी अंजली सचिन मोरे यांच्या घरी बाळंतपणानंतरची १४ व्या दिवसाची भेट दिली. अंजलीचे बीपी १२०/८० सामान्य भरले असून कोणताही जास्त रक्तस्त्राव नाही. बाळाचे वजन ३.२ किलो भरले आहे आणि बाळाला जन्मानंतर पहिल्या तासात स्तनपान सुरू झाले होते. नाळेची स्थिती स्वच्छ व कोरडी आहे. बाळाला ताप किंवा कावीळ नाही. मी मातेला बाळंतपणात सकस आहार आणि फक्त आईचे दूध देण्याचा सल्ला दिला.",
+        "evidence_spans": [
+            {
+                "field_name": "postnatal_day",
+                "extracted_value": 14,
+                "start_char": 49,
+                "end_char": 64,
+                "source_text": "१४ व्या दिवसाची",
+                "confidence": 0.98,
+                "status": "extracted"
+            },
+            {
+                "field_name": "blood_pressure_systolic",
+                "extracted_value": 120,
+                "start_char": 88,
+                "end_char": 94,
+                "source_text": "१२०/८०",
+                "confidence": 0.98,
+                "status": "extracted"
+            },
+            {
+                "field_name": "blood_pressure_diastolic",
+                "extracted_value": 80,
+                "start_char": 88,
+                "end_char": 94,
+                "source_text": "१२०/८०",
+                "confidence": 0.98,
+                "status": "extracted"
+            },
+            {
+                "field_name": "infant_weight_kg",
+                "extracted_value": 3.2,
+                "start_char": 156,
+                "end_char": 164,
+                "source_text": "३.२ किलो",
+                "confidence": 0.98,
+                "status": "extracted"
+            },
+            {
+                "field_name": "exclusive_breastfeeding",
+                "extracted_value": True,
+                "start_char": 195,
+                "end_char": 226,
+                "source_text": "पहिल्या तासात स्तनपान सुरू झाले",
+                "confidence": 0.98,
+                "status": "extracted"
+            },
+            {
+                "field_name": "cord_condition",
+                "extracted_value": "Clean & Dry",
+                "start_char": 233,
+                "end_char": 265,
+                "source_text": "नाळेची स्थिती स्वच्छ व कोरडी आहे",
+                "confidence": 0.98,
+                "status": "extracted"
+            },
+            {
+                "field_name": "danger_signs_absent",
+                "extracted_value": True,
+                "start_char": 113,
+                "end_char": 143,
+                "source_text": "कोणताही जास्त रक्तस्त्राव नाही",
+                "confidence": 0.98,
+                "status": "extracted"
+            }
+        ]
+    },
+    "marathi_immunization_visit": {
+        "title": "Aarav More — Child Immunization Visit (Marathi - 6 Weeks)",
+        "language": "mr-IN",
+        "beneficiary_id": "BEN-MH-PUN-0845",
+        "asha_id": "ASHA-PUN-104",
+        "visit_type": "IMMUNIZATION",
+        "transcript": "आज प्राथमिक आरोग्य उपकेंद्रात ६ आठवड्यांच्या लसीकरण सत्रात आरव मोरे या बालकाला लस देण्यात आली. बालकाचे वजन ४.१ किलो भरले आहे. आज पेंटाव्हॅलेंट पहिली मात्रा, ओपीव्ही १ आणि रोटाव्हायरस पहिली मात्रा देण्यात आली. बालकाला कोणतीही एलर्जी नाही. लस टोचल्यानंतर हलका ताप येऊ शकतो म्हणून पॅरासिटामॉलचे थेंब दिले आणि समुपदेशन केले.",
+        "evidence_spans": [
+            {
+                "field_name": "immunization_session_age",
+                "extracted_value": "6 weeks",
+                "start_char": 30,
+                "end_char": 44,
+                "source_text": "६ आठवड्यांच्या",
+                "confidence": 0.98,
+                "status": "extracted"
+            },
+            {
+                "field_name": "child_weight_kg",
+                "extracted_value": 4.1,
+                "start_char": 107,
+                "end_char": 115,
+                "source_text": "४.१ किलो",
+                "confidence": 0.98,
+                "status": "extracted"
+            },
+            {
+                "field_name": "vaccines_administered",
+                "extracted_value": "Pentavalent-1, OPV-1, Rotavirus-1",
+                "start_char": 129,
+                "end_char": 195,
+                "source_text": "पेंटाव्हॅलेंट पहिली मात्रा, ओपीव्ही १ आणि रोटाव्हायरस पहिली मात्रा",
+                "confidence": 0.98,
+                "status": "extracted"
+            },
+            {
+                "field_name": "adverse_events_absent",
+                "extracted_value": True,
+                "start_char": 209,
+                "end_char": 236,
+                "source_text": "बालकाला कोणतीही एलर्जी नाही",
+                "confidence": 0.98,
+                "status": "extracted"
+            },
+            {
+                "field_name": "post_vaccine_paracetamol",
+                "extracted_value": True,
+                "start_char": 278,
+                "end_char": 301,
+                "source_text": "पॅरासिटामॉलचे थेंब दिले",
+                "confidence": 0.98,
+                "status": "extracted"
+            }
+        ]
     }
 }

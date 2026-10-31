@@ -19,6 +19,14 @@ export class LiveDataService {
       status: (s.status as ExtractionStatus) || 'extracted'
     }));
 
+    const mapVisitType = (vt?: string): 'ANC' | 'PNC' | 'Immunization' | 'General' => {
+      if (!vt) return 'ANC';
+      const u = vt.toUpperCase();
+      if (u.includes('PNC')) return 'PNC';
+      if (u.includes('IMMUN')) return 'Immunization';
+      return 'ANC';
+    };
+
     return {
       recordId: r.record_id,
       beneficiaryId: r.beneficiary_id,
@@ -29,7 +37,7 @@ export class LiveDataService {
       transcript: r.transcript,
       audioDurationSeconds: 42.0,
       recordedAt: r.confirmed_at || new Date().toISOString(),
-      visitType: 'ANC',
+      visitType: mapVisitType(r.visit_type),
       isConfirmedByAsha: r.is_confirmed_by_asha,
       confirmedAt: r.confirmed_at,
       anmReviewStatus: (r.anm_review_status as ReviewStatus) || 'pending',

@@ -145,43 +145,49 @@ def init_db(db: Session = None):
 
         # 3. Seed Initial Visits & Traceable Evidence Spans
         for s_key, scenario in DEMO_VISIT_SCENARIOS.items():
-            existing_visit = (
-                db.query(Visit)
-                .filter(Visit.beneficiary_id == scenario["beneficiary_id"])
-                .first()
-            )
+            short_tag = s_key.upper().replace("MARATHI_", "").replace("_VISIT", "")[:6]
+            visit_id = f"VST-{short_tag}-{scenario['beneficiary_id'][-4:]}"
+            existing_visit = db.query(Visit).filter(Visit.id == visit_id).first()
             if not existing_visit:
+                v_type = VisitType.ANC
+                if scenario.get("visit_type") == "PNC":
+                    v_type = VisitType.PNC
+                elif scenario.get("visit_type") == "IMMUNIZATION":
+                    v_type = VisitType.IMMUNIZATION
+
                 visit = Visit(
-                    id=f"VST-{s_key[:8].upper()}",
+                    id=visit_id,
                     beneficiary_id=scenario["beneficiary_id"],
                     asha_id=scenario["asha_id"],
-                    visit_type=VisitType.ANC,
+                    visit_type=v_type,
                     encounter_date=datetime.now(timezone.utc),
                     sync_status="synced"
                 )
                 db.add(visit)
                 db.flush()
 
+                rec_id = f"REC-2026-{short_tag}-{scenario['beneficiary_id'][-4:]}"
+                is_high_risk = "high_risk" in s_key
                 rec = VisitRecord(
-                    id=f"REC-2026-PUN-{scenario['beneficiary_id'][-4:]}",
+                    id=rec_id,
                     visit_id=visit.id,
                     language=scenario["language"],
                     transcript=scenario["transcript"],
                     audio_duration_seconds=42.5,
-                    bp_systolic=140 if "high_risk" in s_key else 118,
-                    bp_diastolic=95 if "high_risk" in s_key else 76,
-                    weight_kg=54.0 if "high_risk" in s_key else 49.0,
-                    hemoglobin_g_dl=10.2 if "high_risk" in s_key else 11.5,
-                    gestational_weeks=28 if "high_risk" in s_key else 16,
-                    headache=True if "high_risk" in s_key else False,
-                    pedal_edema=True if "high_risk" in s_key else False,
+                    bp_systolic=140 if is_high_risk else (120 if "pnc" in s_key else (118 if "anc" in s_key else None)),
+                    bp_diastolic=95 if is_high_risk else (80 if "pnc" in s_key else (76 if "anc" in s_key else None)),
+                    weight_kg=54.0 if is_high_risk else (3.2 if "pnc" in s_key else (4.1 if "immunization" in s_key else 49.0)),
+                    hemoglobin_g_dl=10.2 if is_high_risk else (11.5 if "anc" in s_key else None),
+                    gestational_weeks=28 if is_high_risk else (16 if "hindi" in s_key else None),
+                    headache=True if is_high_risk else False,
+                    pedal_edema=True if is_high_risk else False,
                     fetal_movement_normal=True,
                     ifa_tablets_given=True,
-                    referral_recommended=True if "high_risk" in s_key else False,
+                    referral_recommended=True if is_high_risk else False,
                     is_confirmed_by_asha=True,
                     confirmed_at=datetime.now(timezone.utc),
-                    anm_review_status=ReviewStatus.PENDING if "high_risk" in s_key else ReviewStatus.REVIEWED,
-                    anm_review_notes="Urgent MO consultation recommended for elevated BP" if "high_risk" in s_key else "Verified and approved by ANM."
+                    anm_review_status=ReviewStatus.PENDING if is_high_risk else ReviewStatus.REVIEWED,
+                    anm_review_notes="Urgent MO consultation recommended for elevated BP" if is_high_risk else "Verified and approved by ANM."
                 )
                 db.add(rec)
                 db.flush()
@@ -190,7 +196,7 @@ def init_db(db: Session = None):
                     span = EvidenceSpan(
                         visit_record_id=rec.id,
                         field_name=span_data["field_name"],
-                        extracted_value=span_data["extracted_value"],
+                        extracted_value=str(span_data["extracted_value"]),
                         start_char=span_data["start_char"],
                         end_char=span_data["end_char"],
                         source_text=span_data["source_text"],

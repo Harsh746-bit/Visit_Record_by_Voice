@@ -53,6 +53,7 @@ export interface ApiEvidenceSpan {
 export interface ApiVisitRecord {
   record_id: string;
   visit_id: string;
+  visit_type?: string;
   beneficiary_id: string;
   beneficiary_name: string;
   asha_id: string;
