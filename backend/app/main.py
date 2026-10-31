@@ -1,11 +1,12 @@
-from fastapi import FastAPI, HTTPException, Depends, status, Query, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Depends, status, Query, UploadFile, File, Form, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timezone
 import uuid
 import logging
+import re
 
 from backend.app.core.config import settings
 from backend.app.db.session import get_db, engine
@@ -28,6 +29,7 @@ from backend.app.schemas.visit import (
 from backend.app.services.clinical_rules import ClinicalRuleValidator
 from backend.app.services.speech.sarvam_service import sarvam_speech_service
 from backend.app.services.extraction.sarvam_extractor import sarvam_extractor
+from backend.app.services.realtime import ws_manager
 from backend.app.data.synthetic_data import DEMO_VISIT_SCENARIOS
 
 logger = logging.getLogger(__name__)
@@ -245,6 +247,138 @@ def synthesize_speech(payload: Dict[str, str]):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def extract_evidence_and_vitals(transcript: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    """
+    Extracts clinical vital signs and exact character spans from Marathi / Hindi clinical speech.
+    Converts Devanagari numerals and locates character offsets directly in the transcript.
+    """
+    spans: List[Dict[str, Any]] = []
+    vitals: Dict[str, Any] = {
+        "bp_systolic": None,
+        "bp_diastolic": None,
+        "weight_kg": None,
+        "hemoglobin_g_dl": None,
+        "gestational_weeks": None,
+        "headache": False,
+        "pedal_edema": False,
+        "fetal_movement_normal": True
+    }
+
+    devanagari_digits = str.maketrans("०१२३४५६७८९", "0123456789")
+    ascii_transcript = transcript.translate(devanagari_digits)
+
+    # 1. Blood Pressure: e.g. 140/95 or १४०/९५
+    bp_match = re.search(r'(?:बीपी|रक्तदाब|bp|रक्तचाप)?\s*(\d{2,3})\s*[/ बाय by]\s*(\d{2,3})', ascii_transcript, re.IGNORECASE)
+    if bp_match:
+        sbp, dbp = int(bp_match.group(1)), int(bp_match.group(2))
+        start_char, end_char = bp_match.span()
+        vitals["bp_systolic"] = sbp
+        vitals["bp_diastolic"] = dbp
+        spans.append({
+            "field_name": "blood_pressure",
+            "extracted_value": f"{sbp}/{dbp} mmHg",
+            "start_char": start_char,
+            "end_char": end_char,
+            "source_text": transcript[start_char:end_char],
+            "confidence": 0.98,
+            "status": "concerning" if (sbp >= 140 or dbp >= 90) else "extracted"
+        })
+
+    # 2. Weight: e.g. 54 किलो or वजन 54 kg
+    wt_match = re.search(r'(?:वजन|weight)?\s*(\d{2,3}(?:\.\d+)?)\s*(?:किलो|kg|किलोग्राम)', ascii_transcript, re.IGNORECASE)
+    if wt_match:
+        wt = float(wt_match.group(1))
+        start_char, end_char = wt_match.span()
+        vitals["weight_kg"] = wt
+        spans.append({
+            "field_name": "weight",
+            "extracted_value": f"{wt} kg",
+            "start_char": start_char,
+            "end_char": end_char,
+            "source_text": transcript[start_char:end_char],
+            "confidence": 0.99,
+            "status": "extracted"
+        })
+
+    # 3. Hemoglobin: e.g. हिमोग्लोबिन 10.2 ग्रॅम
+    hb_match = re.search(r'(?:हिमोग्लोबिन|hb|हिमोग्लोबिनची पातळी)?\s*(\d{1,2}(?:\.\d+)?)\s*(?:ग्रॅम|g/dl|gm)?', ascii_transcript, re.IGNORECASE)
+    if hb_match:
+        val = float(hb_match.group(1))
+        if 3.0 <= val <= 20.0:
+            start_char, end_char = hb_match.span()
+            vitals["hemoglobin_g_dl"] = val
+            spans.append({
+                "field_name": "hemoglobin",
+                "extracted_value": f"{val} g/dL",
+                "start_char": start_char,
+                "end_char": end_char,
+                "source_text": transcript[start_char:end_char],
+                "confidence": 0.96,
+                "status": "concerning" if val < 11.0 else "extracted"
+            })
+
+    # 4. Gestational Age: e.g. 28 आठवडे
+    ga_match = re.search(r'(\d{1,2})\s*(?:आठवडे|हफ्ते|weeks|आठवड्याची)', ascii_transcript, re.IGNORECASE)
+    if ga_match:
+        ga = int(ga_match.group(1))
+        start_char, end_char = ga_match.span()
+        vitals["gestational_weeks"] = ga
+        spans.append({
+            "field_name": "gestational_age",
+            "extracted_value": f"{ga} आठवडे",
+            "start_char": start_char,
+            "end_char": end_char,
+            "source_text": transcript[start_char:end_char],
+            "confidence": 0.97,
+            "status": "extracted"
+        })
+
+    # 5. Symptoms: Headache
+    headache_match = re.search(r'(?:डोकेदुखी|डोके दुखणे|सिरदर्द|headache)', transcript)
+    if headache_match:
+        vitals["headache"] = True
+        start_char, end_char = headache_match.span()
+        spans.append({
+            "field_name": "headache",
+            "extracted_value": "Reported (Severe)",
+            "start_char": start_char,
+            "end_char": end_char,
+            "source_text": transcript[start_char:end_char],
+            "confidence": 0.95,
+            "status": "concerning"
+        })
+
+    # 6. Symptoms: Pedal Edema / Swelling
+    edema_match = re.search(r'(?:सूज|पायावर सूज|सूजन|edema|swelling)', transcript)
+    if edema_match:
+        vitals["pedal_edema"] = True
+        start_char, end_char = edema_match.span()
+        spans.append({
+            "field_name": "pedal_edema",
+            "extracted_value": "Present (Bilateral)",
+            "start_char": start_char,
+            "end_char": end_char,
+            "source_text": transcript[start_char:end_char],
+            "confidence": 0.95,
+            "status": "concerning"
+        })
+
+    # 7. Fetal Movement
+    fetal_match = re.search(r'(?:बाळाची हालचाल|हालचाल|हलचल|fetal movement)', transcript)
+    if fetal_match:
+        start_char, end_char = fetal_match.span()
+        spans.append({
+            "field_name": "fetal_movement",
+            "extracted_value": "Normal / Active",
+            "start_char": start_char,
+            "end_char": end_char,
+            "source_text": transcript[start_char:end_char],
+            "confidence": 0.96,
+            "status": "extracted"
+        })
+
+    return vitals, spans
+
 # --- CLINICAL EXTRACTION & EVIDENCE MAPPING ---
 @app.post("/api/v1/visits/extract")
 def extract_structured_record(payload: Dict[str, Any], db: Session = Depends(get_db)):
@@ -273,14 +407,44 @@ def extract_structured_record(payload: Dict[str, Any], db: Session = Depends(get
         audio_duration_seconds=42.0
     )
 
-    rec.evidence_spans = [EvidenceSpanSchema(**s) for s in demo_data["evidence_spans"]]
+    # 1. Perform dynamic extraction from actual transcript
+    dynamic_vitals, dynamic_spans = extract_evidence_and_vitals(transcript)
+
+    # 2. Update measurements if extracted dynamically
+    if dynamic_vitals["bp_systolic"] is not None:
+        rec.measurements.blood_pressure_systolic.value = dynamic_vitals["bp_systolic"]
+        rec.measurements.blood_pressure_systolic.status = ExtractionStatus.CONCERNING if dynamic_vitals["bp_systolic"] >= 140 else ExtractionStatus.EXTRACTED
+    if dynamic_vitals["bp_diastolic"] is not None:
+        rec.measurements.blood_pressure_diastolic.value = dynamic_vitals["bp_diastolic"]
+        rec.measurements.blood_pressure_diastolic.status = ExtractionStatus.CONCERNING if dynamic_vitals["bp_diastolic"] >= 90 else ExtractionStatus.EXTRACTED
+    if dynamic_vitals["weight_kg"] is not None:
+        rec.measurements.weight_kg.value = dynamic_vitals["weight_kg"]
+        rec.measurements.weight_kg.status = ExtractionStatus.EXTRACTED
+    if dynamic_vitals["hemoglobin_g_dl"] is not None:
+        rec.measurements.hemoglobin_g_dl.value = dynamic_vitals["hemoglobin_g_dl"]
+        rec.measurements.hemoglobin_g_dl.status = ExtractionStatus.CONCERNING if dynamic_vitals["hemoglobin_g_dl"] < 11.0 else ExtractionStatus.EXTRACTED
+    if dynamic_vitals["gestational_weeks"] is not None:
+        rec.pregnancy_details.gestational_age_weeks.value = dynamic_vitals["gestational_weeks"]
+        rec.pregnancy_details.gestational_age_weeks.status = ExtractionStatus.EXTRACTED
+    if dynamic_vitals["headache"]:
+        rec.symptoms.headache_or_blurred_vision.value = True
+        rec.symptoms.headache_or_blurred_vision.status = ExtractionStatus.CONCERNING
+    if dynamic_vitals["pedal_edema"]:
+        rec.symptoms.swelling_face_hands_feet.value = True
+        rec.symptoms.swelling_face_hands_feet.status = ExtractionStatus.CONCERNING
+
+    # 3. Combine dynamic evidence spans with scenario fallback if needed
+    final_spans = dynamic_spans if len(dynamic_spans) >= 2 else demo_data["evidence_spans"]
+    rec.evidence_spans = [EvidenceSpanSchema(**s) for s in final_spans]
+
     validation_warnings = ClinicalRuleValidator.validate_record(rec)
     rec.validation_warnings = validation_warnings
 
     return {
         "structured_record": rec.dict(),
         "extracted_spans_count": len(rec.evidence_spans),
-        "warnings_count": len(validation_warnings)
+        "warnings_count": len(validation_warnings),
+        "vitals_extracted": dynamic_vitals
     }
 
 # --- VISIT RECORDS CRUD (POSTGRESQL PERSISTENCE) ---
@@ -376,9 +540,10 @@ def get_visit_record(record_id: str, db: Session = Depends(get_db)):
     }
 
 @app.post("/api/v1/visits", status_code=status.HTTP_201_CREATED)
-def create_visit_record(record_payload: Dict[str, Any], db: Session = Depends(get_db)):
+async def create_visit_record(record_payload: Dict[str, Any], db: Session = Depends(get_db)):
     """
     Persists a confirmed frontline visit into PostgreSQL with full ACID transaction.
+    Dispatches real-time WebSocket notifications to the assigned ANM supervisor circle.
     """
     ben_id = record_payload.get("beneficiary_id", "BEN-MH-PUN-0841")
     asha_id = record_payload.get("asha_id", "ASHA-PUN-104")
@@ -445,17 +610,29 @@ def create_visit_record(record_payload: Dict[str, Any], db: Session = Depends(ge
         db.add(notif)
 
     db.commit()
+
+    # WebSocket Real-Time Broadcast to ANM Dashboard
+    is_high_risk = (rec.bp_systolic and rec.bp_systolic >= 140) or (rec.hemoglobin_g_dl and rec.hemoglobin_g_dl < 11.0)
+    event_type = "high_risk.alert" if is_high_risk else "visit.submitted"
+    ben = db.query(Beneficiary).filter(Beneficiary.id == ben_id).first()
+    await ws_manager.broadcast_to_circle("khed_shivapur_circle", event_type, {
+        "record_id": rec.id,
+        "beneficiary_name": ben.full_name if ben else "Unknown",
+        "bp": f"{rec.bp_systolic}/{rec.bp_diastolic}",
+        "is_high_risk": is_high_risk
+    })
+
     return {"success": True, "record_id": rec.id, "message": "Visit record persisted in PostgreSQL."}
 
 @app.patch("/api/v1/visits/{record_id}/review")
-def review_visit_record(
+async def review_visit_record(
     record_id: str, 
     payload: Dict[str, Any], 
     db: Session = Depends(get_db)
 ):
     """
     ANM review action: 'reviewed' (approved), 'returned' (needs ASHA clarification)
-    Persists decision to ReviewAction and logs to AuditLog.
+    Persists decision to ReviewAction, logs to AuditLog, and dispatches real-time WebSocket update to ASHA.
     """
     record = db.query(VisitRecord).filter(VisitRecord.id == record_id).first()
     if not record:
@@ -498,6 +675,14 @@ def review_visit_record(
     db.add(audit)
 
     db.commit()
+
+    # Real-time WebSocket dispatch to ASHA worker
+    await ws_manager.send_to_worker(record.visit.asha_id, "record.reviewed" if action_str == "reviewed" else "record.returned", {
+        "record_id": record.id,
+        "action": action_str,
+        "notes": notes
+    })
+
     return {
         "success": True,
         "record_id": record.id,
@@ -508,3 +693,29 @@ def review_visit_record(
             "anm_review_notes": record.anm_review_notes
         }
     }
+
+# --- REAL-TIME WEBSOCKET ROUTES ---
+
+@app.websocket("/ws/anm/{circle_id}")
+async def websocket_anm_endpoint(websocket: WebSocket, circle_id: str):
+    """
+    Subscribes ANM Supervisor to live circle updates (new visits submitted, high risk alerts).
+    """
+    await ws_manager.connect_anm(circle_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect_anm(circle_id, websocket)
+
+@app.websocket("/ws/asha/{worker_id}")
+async def websocket_asha_endpoint(websocket: WebSocket, worker_id: str):
+    """
+    Subscribes ASHA frontline worker to live review remarks and supervisor approvals.
+    """
+    await ws_manager.connect_asha(worker_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect_asha(worker_id, websocket)

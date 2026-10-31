@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './hooks/useAuth';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { OverviewView } from './features/dashboard/OverviewView';
 import { WorkersDirectoryView } from './features/workers/WorkersDirectoryView';
@@ -33,6 +34,12 @@ function AppContent() {
     liveDataService.getBeneficiaries().then(setBeneficiaries);
     liveDataService.getWorkers().then(setWorkers);
   }, [isAuthenticated]);
+
+  // Real-time WebSocket sync: automatically refreshes records on 'visit.submitted' or 'high_risk.alert'
+  const handleRealtimeEvent = useCallback(() => {
+    liveDataService.getRecords().then(setRecords);
+  }, []);
+  useRealtimeSync('khed_shivapur_circle', handleRealtimeEvent);
 
   const pendingCount = records.filter(r => r.anmReviewStatus === 'pending').length;
 
