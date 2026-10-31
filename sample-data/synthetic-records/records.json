@@ -1,0 +1,67 @@
+[
+  {
+    "record_id": "REC-2026-PUN-0914",
+    "beneficiary_id": "BEN-MH-PUN-0841",
+    "beneficiary_name": "Sunita Sanjay Shinde",
+    "asha_id": "ASHA-PUN-104",
+    "asha_name": "Rukmini Vithal Jadhav",
+    "language": "mr-IN",
+    "recorded_at": "2026-10-31T10:15:00Z",
+    "is_confirmed_by_asha": true,
+    "anm_review_status": "pending",
+    "anm_review_notes": "Elevated BP (140/95) with headache. Pre-eclampsia danger sign.",
+    "measurements": {
+      "blood_pressure_systolic": 140,
+      "blood_pressure_diastolic": 95,
+      "weight_kg": 54.0,
+      "hemoglobin_g_dl": 10.2
+    },
+    "pregnancy_details": {
+      "gestational_age_weeks": 28,
+      "trimester": 3,
+      "high_risk": true
+    },
+    "symptoms": {
+      "headache_or_blurred_vision": true,
+      "swelling_pedal_edema": true,
+      "fetal_movement_normal": true
+    },
+    "interventions": {
+      "ifa_tablets_given": true,
+      "referral_recommended": true,
+      "referral_facility": "Khed PHC / Sub-District Hospital"
+    }
+  },
+  {
+    "record_id": "REC-2026-PUN-0882",
+    "beneficiary_id": "BEN-MH-PUN-0842",
+    "beneficiary_name": "Pooja Rahul Patil",
+    "asha_id": "ASHA-PUN-104",
+    "asha_name": "Rukmini Vithal Jadhav",
+    "language": "hi-IN",
+    "recorded_at": "2026-10-30T14:40:00Z",
+    "is_confirmed_by_asha": true,
+    "anm_review_status": "reviewed",
+    "anm_review_notes": "Routine checkup verified.",
+    "measurements": {
+      "blood_pressure_systolic": 118,
+      "blood_pressure_diastolic": 76,
+      "weight_kg": 49.0,
+      "hemoglobin_g_dl": 11.5
+    },
+    "pregnancy_details": {
+      "gestational_age_weeks": 16,
+      "trimester": 2,
+      "high_risk": false
+    },
+    "symptoms": {
+      "headache_or_blurred_vision": false,
+      "swelling_pedal_edema": false,
+      "fetal_movement_normal": true
+    },
+    "interventions": {
+      "ifa_tablets_given": true,
+      "referral_recommended": false
+    }
+  }
+]

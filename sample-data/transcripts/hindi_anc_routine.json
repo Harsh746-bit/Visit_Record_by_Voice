@@ -1,0 +1,46 @@
+{
+  "scenario_id": "HI-ANC-002",
+  "title": "Pooja Patil — Routine ANC Visit (Hindi - Normal)",
+  "language": "hi-IN",
+  "beneficiary_id": "BEN-MH-PUN-0842",
+  "asha_id": "ASHA-PUN-104",
+  "transcript": "आज मैंने पूजा राहुल पाटिल के घर विजिट किया। पूजा की उम्र 21 साल है और वह पहली बार गर्भवती है, अभी उसका 16वां हफ्ता चल रहा है। उसका बीपी 118/76 नॉर्मल आया है। वजन 49 किलो है और हीमोग्लोबिन 11.5 ग्राम है। उसे कोई उल्टी, चक्कर या सिरदर्द की शिकायत नहीं है। मैंने उसे 30 दिन की आयरन और कैल्शियम की गोलियां दी हैं और हरी पत्तेदार सब्जियां खाने की सलाह दी।",
+  "evidence_spans": [
+    {
+      "field_name": "gestational_age_weeks",
+      "extracted_value": 16,
+      "start_char": 83,
+      "end_char": 94,
+      "source_text": "16वां हफ्ता",
+      "confidence": 0.98,
+      "status": "extracted"
+    },
+    {
+      "field_name": "blood_pressure_systolic",
+      "extracted_value": 118,
+      "start_char": 117,
+      "end_char": 128,
+      "source_text": "बीपी 118/76",
+      "confidence": 0.99,
+      "status": "extracted"
+    },
+    {
+      "field_name": "weight_kg",
+      "extracted_value": 49.0,
+      "start_char": 144,
+      "end_char": 156,
+      "source_text": "वजन 49 किलो है",
+      "confidence": 0.96,
+      "status": "extracted"
+    },
+    {
+      "field_name": "hemoglobin_g_dl",
+      "extracted_value": 11.5,
+      "start_char": 161,
+      "end_char": 184,
+      "source_text": "हीमोग्लोबिन 11.5 ग्राम है",
+      "confidence": 0.97,
+      "status": "extracted"
+    }
+  ]
+}

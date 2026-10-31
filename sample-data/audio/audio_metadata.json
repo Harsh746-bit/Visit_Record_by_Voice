@@ -1,0 +1,26 @@
+{
+  "samples": [
+    {
+      "sample_id": "AUD-MR-PUN-01",
+      "format": "audio/wav",
+      "sample_rate_hz": 16000,
+      "channels": 1,
+      "duration_seconds": 44.2,
+      "language": "mr-IN",
+      "dialect": "Deshi Marathi (Pune Rural)",
+      "associated_transcript_id": "MR-ANC-001",
+      "synthetic_speaker": "ASHA Rukmini Jadhav"
+    },
+    {
+      "sample_id": "AUD-HI-PUN-02",
+      "format": "audio/wav",
+      "sample_rate_hz": 16000,
+      "channels": 1,
+      "duration_seconds": 38.0,
+      "language": "hi-IN",
+      "dialect": "Khandeshi / Standard Hindi code-mixed",
+      "associated_transcript_id": "HI-ANC-002",
+      "synthetic_speaker": "ASHA Rukmini Jadhav"
+    }
+  ]
+}

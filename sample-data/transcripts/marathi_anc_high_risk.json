@@ -1,0 +1,82 @@
+{
+  "scenario_id": "MR-ANC-001",
+  "title": "Sunita Shinde — ANC Visit (Marathi - High Risk BP)",
+  "language": "mr-IN",
+  "beneficiary_id": "BEN-MH-PUN-0841",
+  "asha_id": "ASHA-PUN-104",
+  "transcript": "आज दिनांक ३१ ऑक्टोबरला मी सुनिता शिंदे यांच्या घरी भेट दिली. सुनिताचे वय २४ वर्षे असून ती सध्या २८ आठवड्यांची गरोदर आहे. तिचा रक्तदाब तपासला असता बीपी १४०/९५ एवढा जास्त भरला आहे. वजन ५४ किलो आहे. हिमोग्लोबिन १०.२ ग्रॅम भरले. तिला गेल्या दोन दिवसांपासून डोकेदुखीचा त्रास होत आहे आणि पायावर हलकी सूज आहे. बाळाची हालचाल व्यवस्थित आहे. मी तिला तातडीने प्राथमिक आरोग्य केंद्रात डॉक्टरांकडे जाण्यास सांगितले आणि आयर्नच्या गोळ्या नियमित घेण्याचा सल्ला दिला.",
+  "evidence_spans": [
+    {
+      "field_name": "gestational_age_weeks",
+      "extracted_value": 28,
+      "start_char": 95,
+      "end_char": 105,
+      "source_text": "२८ आठवड्यांची",
+      "confidence": 0.98,
+      "status": "extracted"
+    },
+    {
+      "field_name": "blood_pressure_systolic",
+      "extracted_value": 140,
+      "start_char": 145,
+      "end_char": 154,
+      "source_text": "बीपी १४०/९५",
+      "confidence": 0.99,
+      "status": "concerning"
+    },
+    {
+      "field_name": "blood_pressure_diastolic",
+      "extracted_value": 95,
+      "start_char": 145,
+      "end_char": 154,
+      "source_text": "बीपी १४०/९५",
+      "confidence": 0.99,
+      "status": "concerning"
+    },
+    {
+      "field_name": "weight_kg",
+      "extracted_value": 54.0,
+      "start_char": 172,
+      "end_char": 184,
+      "source_text": "वजन ५४ किलो आहे",
+      "confidence": 0.96,
+      "status": "extracted"
+    },
+    {
+      "field_name": "hemoglobin_g_dl",
+      "extracted_value": 10.2,
+      "start_char": 186,
+      "end_char": 210,
+      "source_text": "हिमोग्लोबिन १०.२ ग्रॅम भरले",
+      "confidence": 0.97,
+      "status": "extracted"
+    },
+    {
+      "field_name": "headache_or_blurred_vision",
+      "extracted_value": true,
+      "start_char": 216,
+      "end_char": 260,
+      "source_text": "गेल्या दोन दिवसांपासून डोकेदुखीचा त्रास होत आहे",
+      "confidence": 0.95,
+      "status": "concerning"
+    },
+    {
+      "field_name": "swelling_pedal_edema",
+      "extracted_value": true,
+      "start_char": 266,
+      "end_char": 283,
+      "source_text": "पायावर हलकी सूज आहे",
+      "confidence": 0.93,
+      "status": "concerning"
+    },
+    {
+      "field_name": "fetal_movement_normal",
+      "extracted_value": true,
+      "start_char": 285,
+      "end_char": 312,
+      "source_text": "बाळाची हालचाल व्यवस्थित आहे",
+      "confidence": 0.97,
+      "status": "extracted"
+    }
+  ]
+}

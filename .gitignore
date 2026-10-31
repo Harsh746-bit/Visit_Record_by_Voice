@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing and Cache
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*$py.class
+.coverage
+htmlcov/
+
+# Build outputs
+dist/
+build/
+*.apk
+*.aab
+.gradle/
+local.properties
+
+# Databases & Local state
+*.db
+*.sqlite3
+.env
+.env.local
+.DS_Store
+Thumbs.db
