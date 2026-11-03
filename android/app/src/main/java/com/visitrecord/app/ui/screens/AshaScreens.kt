@@ -1735,18 +1735,21 @@ private fun RecentVisitItem(date: String, details: String, status: String) {
 }
 
 // -------------------------------------------------------------
-// 7. VOICE RECORDING SCREEN
+// 7. VOICE RECORDING SCREEN (Pulsing Mic, Waveform & Tips)
 // -------------------------------------------------------------
 @Composable
 fun VoiceRecordingScreen(
     onFinishRecording: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    beneficiaryName: String = "सुनिता संजय शिंदे",
+    language: String = "mr-IN"
 ) {
-    var seconds by remember { mutableStateOf(14) }
+    var isRecording by remember { mutableStateOf(true) }
+    var seconds by remember { mutableIntStateOf(14) }
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(1000)
+    LaunchedEffect(isRecording) {
+        while (isRecording) {
+            delay(1000)
             seconds++
         }
     }
@@ -1754,191 +1757,320 @@ fun VoiceRecordingScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF0F3A40), PrimaryText)))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        PrimaryTealDark,
+                        Color(0xFF094A52),
+                        PrimaryText
+                    )
+                )
+            )
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
+        // Top Bar
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onCancel) {
+            IconButton(
+                onClick = onCancel,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.15f))
+            ) {
                 Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
             }
+
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White.copy(alpha = 0.15f)
+                color = Color.White.copy(alpha = 0.15f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
             ) {
-                Text(
-                    text = "भाषा: मराठी (Sarvam Saaras)",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White
-                )
-            }
-        }
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Text(
-                text = "00:${seconds.toString().padStart(2, '0')}",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-
-            Row(
-                modifier = Modifier.height(48.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                listOf(20, 35, 48, 25, 42, 30, 48, 38, 24, 45, 18).forEach { height ->
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Box(
                         modifier = Modifier
-                            .width(5.dp)
-                            .height(height.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(SecondaryGreen)
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (isRecording) DangerRed else WarningAmber)
+                    )
+                    Text(
+                        text = if (isRecording) "थेट रेकॉर्डिंग सुरू आहे" else "रेकॉर्डिंग थांबवले",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .size(110.dp)
-                    .clip(CircleShape)
-                    .background(PrimaryTeal.copy(alpha = 0.4f)),
-                contentAlignment = Alignment.Center
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = SecondaryGreen.copy(alpha = 0.25f)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(PrimaryTeal)
-                        .clickable { onFinishRecording() },
-                    contentAlignment = Alignment.Center
+                Text(
+                    text = "Sarvam Saaras",
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        // Center Content: Audio Recorder with pulsating mic and waveform
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White.copy(alpha = 0.12f),
+                modifier = Modifier.padding(horizontal = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Stop, contentDescription = "Stop", tint = Color.White, modifier = Modifier.size(36.dp))
+                    Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Text(
+                        text = "माता: $beneficiaryName",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 }
             }
 
-            Text(
-                text = "घरभेटीबद्दल नैसर्गिकरीत्या बोला. मराठी, हिंदी किंवा वैद्यकीय शब्द वापरू शकता.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 24.dp)
+            // Audio Recorder Component
+            AudioRecorder(
+                isRecording = isRecording,
+                seconds = seconds,
+                onToggleRecord = { isRecording = !isRecording },
+                language = language
             )
+
+            // Spoken dialect guidance tip
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White.copy(alpha = 0.08f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "नैसर्गिक आवाजात बोला. बीपी (रक्तदाब), वजन, हिमोग्लोबिन, डोकेदुखी, पायावरील सूज यासारखे शब्द AI अचूक ओळखेल.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.85f)
+                    )
+                }
+            }
         }
 
-        Button(
-            onClick = onFinishRecording,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = SecondaryGreen)
+        // Bottom CTA
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                text = "रेकॉर्डिंग पूर्ण करा (Finish & Review)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+            PrimaryButton(
+                text = "रेकॉर्डिंग पूर्ण करा • Finish & Review",
+                onClick = onFinishRecording,
+                trailingIcon = Icons.AutoMirrored.Filled.ArrowForward,
+                containerColor = SecondaryGreen
+            )
+
+            SecondaryButton(
+                text = if (isRecording) "रेकॉर्डिंग थांबवा (Pause)" else "पुन्हा सुरू करा (Resume)",
+                onClick = { isRecording = !isRecording },
+                contentColor = Color.White
             )
         }
     }
 }
 
 // -------------------------------------------------------------
-// 8. TRANSCRIPTION REVIEW SCREEN (Editable Devanagari Text)
+// 8. TRANSCRIPTION REVIEW SCREEN (Editable Devanagari Text & Audio)
 // -------------------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TranscriptionReviewScreen(
     onExtractAI: () -> Unit,
-    onReRecord: () -> Unit
+    onReRecord: () -> Unit,
+    initialTranscript: String = "आज दिनांक ३१ ऑक्टोबरला मी सुनिता शिंदे यांच्या घरी भेट दिली. सुनिताचे वय २४ वर्षे असून ती सध्या २८ आठवड्यांची गरोदर आहे. तिचा रक्तदाब तपासला असता बीपी १४०/९५ एवढा जास्त भरला आहे. वजन ५४ किलो आहे. हिमोग्लोबिन १०.२ ग्रॅम भरले. तिला गेल्या दोन दिवसांपासून डोकेदुखीचा त्रास होत आहे आणि पायावर हलकी सूज आहे. बाळाची हालचाल व्यवस्थित आहे. मी तिला तातडीने प्राथमिक आरोग्य केंद्रात जाण्यास सांगितले."
 ) {
-    var transcriptText by remember {
-        mutableStateOf(
-            "आज दिनांक ३१ ऑक्टोबरला मी सुनिता शिंदे यांच्या घरी भेट दिली. सुनिताचे वय २४ वर्षे असून ती सध्या २८ आठवड्यांची गरोदर आहे. तिचा रक्तदाब तपासला असता बीपी १४०/९५ एवढा जास्त भरला आहे. वजन ५४ किलो आहे. हिमोग्लोबिन १०.२ ग्रॅम भरले. तिला गेल्या दोन दिवसांपासून डोकेदुखीचा त्रास होत आहे आणि पायावर हलकी सूज आहे. बाळाची हालचाल व्यवस्थित आहे. मी तिला तातडीने प्राथमिक आरोग्य केंद्रात जाण्यास सांगितले."
-        )
-    }
+    var transcriptText by remember { mutableStateOf(initialTranscript) }
+    var isPlayingAudio by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MainBackground)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "आवाजाचे रूपांतर (Transcript)",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = PrimaryText
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = "आवाजाचे रूपांतर (Verbatim Transcript)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryText
+                        )
+                        Text(
+                            text = "Sarvam Saaras v3 ASR • मराठी",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PrimaryTeal
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onReRecord) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MainBackground)
             )
-            Surface(shape = RoundedCornerShape(8.dp), color = PrimaryTealContainer) {
-                Text("Sarvam Saaras v3", modifier = Modifier.padding(6.dp), style = MaterialTheme.typography.labelSmall, color = PrimaryTealDark)
+        },
+        bottomBar = {
+            Surface(
+                color = Color.White,
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    SecondaryButton(
+                        text = "पुन्हा रेकॉर्ड करा",
+                        onClick = onReRecord,
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = Icons.Default.Refresh
+                    )
+
+                    PrimaryButton(
+                        text = "AI माहिती काढा • Extract",
+                        onClick = onExtractAI,
+                        modifier = Modifier.weight(1.2f),
+                        trailingIcon = Icons.AutoMirrored.Filled.ArrowForward
+                    )
+                }
             }
-        }
-
-        Text(
-            text = "* उच्चार किंवा आवाजातील त्रुटी असल्यास आपण खालील मजकूर दुरुस्त करू शकता:",
-            style = MaterialTheme.typography.labelSmall,
-            color = SecondaryText
-        )
-
-        OutlinedTextField(
-            value = transcriptText,
-            onValueChange = { transcriptText = it },
+        },
+        containerColor = MainBackground
+    ) { padding ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = PrimaryTeal,
-                unfocusedBorderColor = BorderColor
-            )
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            OutlinedButton(
-                onClick = onReRecord,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp)
+            // Audio Playback Bar
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
             ) {
-                Text("पुन्हा रेकॉर्ड करा", fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    IconButton(
+                        onClick = { isPlayingAudio = !isPlayingAudio },
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryTealContainer)
+                    ) {
+                        Icon(
+                            imageVector = if (isPlayingAudio) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlayingAudio) "Pause" else "Play",
+                            tint = PrimaryTeal
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isPlayingAudio) "ऑडिओ वाजत आहे... (00:14 / 00:18)" else "मूळ रेकॉर्ड केलेला आवाज ऐका (00:18)",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PrimaryText
+                        )
+                        LinearProgressIndicator(
+                            progress = { if (isPlayingAudio) 0.75f else 0f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = PrimaryTeal,
+                            trackColor = BorderColor
+                        )
+                    }
+                }
             }
 
-            Button(
-                onClick = onExtractAI,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp),
+            // Editable Transcript Card Component
+            TranscriptCard(
+                transcript = transcriptText,
+                onTranscriptChange = { transcriptText = it }
+            )
+
+            // AI Extraction Info Banner
+            Surface(
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
+                color = SecondaryGreenContainer,
+                border = androidx.compose.foundation.BorderStroke(1.dp, SecondaryGreen.copy(alpha = 0.3f))
             ) {
-                Text("AI माहिती काढा", fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = SecondaryGreenDark,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "सदर मजकुरामधून वैद्यकीय निकष, रक्तदाब, वजन आणि धोक्याचे इशारे थेट मूळ वाक्यांच्या पुराव्यासह काढले जातील.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SecondaryGreenDark
+                    )
+                }
             }
         }
     }
 }
 
 // -------------------------------------------------------------
-// 9. STRUCTURED AI FORM (Editable extracted fields)
+// 9. STRUCTURED AI FORM (Vitals & Clinical Symptoms)
 // -------------------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StructuredRecordScreen(
     onReviewEvidence: () -> Unit,
@@ -1948,193 +2080,388 @@ fun StructuredRecordScreen(
     var bpDiastolic by remember { mutableStateOf("95") }
     var weight by remember { mutableStateOf("54.0") }
     var hb by remember { mutableStateOf("10.2") }
+    var gestationalWeeks by remember { mutableStateOf("28") }
+    var headache by remember { mutableStateOf(true) }
+    var pedalEdema by remember { mutableStateOf(true) }
+    var fetalMovementNormal by remember { mutableStateOf(true) }
+    var ifaGiven by remember { mutableStateOf(true) }
+    var referralFacility by remember { mutableStateOf("खेड शिवापूर ग्रामीण रुग्णालय (RH)") }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MainBackground)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-            Text(
-                text = "तयार झालेली भेट नोंद (Extracted)",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = PrimaryText
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text("तयार झालेली भेट नोंद", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("सुनिता शिंदे • २८ आठवडे ANC", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MainBackground)
             )
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-        ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("A. मोजमापे (Vital Signs)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = bpSystolic,
-                        onValueChange = { bpSystolic = it },
-                        label = { Text("BP Systolic") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = bpDiastolic,
-                        onValueChange = { bpDiastolic = it },
-                        label = { Text("BP Diastolic") },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = weight,
-                        onValueChange = { weight = it },
-                        label = { Text("वजन (Weight kg)") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = hb,
-                        onValueChange = { hb = it },
-                        label = { Text("Hb (g/dL)") },
-                        modifier = Modifier.weight(1f)
+        },
+        bottomBar = {
+            Surface(
+                color = Color.White,
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(modifier = Modifier.padding(16.dp)) {
+                    PrimaryButton(
+                        text = "पुरावा पडताळा • Review Evidence",
+                        onClick = onReviewEvidence,
+                        trailingIcon = Icons.AutoMirrored.Filled.ArrowForward
                     )
                 }
             }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-        ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("B. नोंदवलेली लक्षणे (Symptoms)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-                ObservationRow(label = "डोकेदुखी (Severe Headache)", value = "आहे (Reported)", isDanger = true)
-                ObservationRow(label = "पायावर सूज (Pedal Edema)", value = "हलकी सूज (Mild)", isDanger = true)
-                ObservationRow(label = "बाळाची हालचाल (Fetal Movement)", value = "नॉर्मल (Good)", isDanger = false)
-            }
-        }
-
-        Button(
-            onClick = onReviewEvidence,
+        },
+        containerColor = MainBackground
+    ) { padding ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(
-                text = "पुरावा पडताळा • Review Evidence",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            // High Risk Alert Banner
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = DangerContainer,
+                border = androidx.compose.foundation.BorderStroke(1.dp, DangerRed.copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = DangerRed)
+                    Column {
+                        Text(
+                            text = "उच्च जोखीम आढळली (High Risk Detected)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = DangerRed
+                        )
+                        Text(
+                            text = "रक्तदाब १४०/९५ mmHg आणि डोकेदुखी. वैद्यकीय पडताळणी आवश्यक.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = DangerRed
+                        )
+                    }
+                }
+            }
+
+            // Section A: Vitals (मोजमापे)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("A. मोजमापे (Vital Signs)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = PrimaryTeal)
+                        StatusChip(status = "high_risk", label = "उच्च रक्तदाब")
+                    }
+                    HorizontalDivider(color = BorderColor)
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = bpSystolic,
+                            onValueChange = { bpSystolic = it },
+                            label = { Text("BP Systolic (mmHg)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = DangerRed,
+                                unfocusedBorderColor = DangerRed.copy(alpha = 0.5f)
+                            )
+                        )
+                        OutlinedTextField(
+                            value = bpDiastolic,
+                            onValueChange = { bpDiastolic = it },
+                            label = { Text("BP Diastolic (mmHg)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = DangerRed,
+                                unfocusedBorderColor = DangerRed.copy(alpha = 0.5f)
+                            )
+                        )
+                    }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = weight,
+                            onValueChange = { weight = it },
+                            label = { Text("वजन (Weight kg)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = hb,
+                            onValueChange = { hb = it },
+                            label = { Text("Hb (g/dL)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = WarningAmber,
+                                unfocusedBorderColor = WarningAmber.copy(alpha = 0.5f)
+                            )
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = gestationalWeeks,
+                        onValueChange = { gestationalWeeks = it },
+                        label = { Text("गर्भावस्थेचे आठवडे (Weeks)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+
+            // Section B: Symptoms & Clinical Signs (लक्षणे)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("B. लक्षणे व निरीक्षणे (Symptoms)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = PrimaryTeal)
+                    HorizontalDivider(color = BorderColor)
+
+                    SymptomToggleRow(
+                        label = "तीव्र डोकेदुखी (Severe Headache)",
+                        isChecked = headache,
+                        onCheckedChange = { headache = it },
+                        isDanger = true
+                    )
+                    SymptomToggleRow(
+                        label = "पायावर सूज (Pedal Edema)",
+                        isChecked = pedalEdema,
+                        onCheckedChange = { pedalEdema = it },
+                        isDanger = true
+                    )
+                    SymptomToggleRow(
+                        label = "गर्भाची हालचाल नॉर्मल (Fetal Movements Normal)",
+                        isChecked = fetalMovementNormal,
+                        onCheckedChange = { fetalMovementNormal = it },
+                        isDanger = false
+                    )
+                    SymptomToggleRow(
+                        label = "IFA गोळ्यांचे वाटप (Iron-Folic Acid Tablets)",
+                        isChecked = ifaGiven,
+                        onCheckedChange = { ifaGiven = it },
+                        isDanger = false
+                    )
+                }
+            }
+
+            // Section C: Referral Facility
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("C. संदर्भ सेवा (Referral Hospital)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = PrimaryTeal)
+                    HorizontalDivider(color = BorderColor)
+
+                    OutlinedTextField(
+                        value = referralFacility,
+                        onValueChange = { referralFacility = it },
+                        label = { Text("शिफारस केलेले रुग्णालय (Facility)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
         }
     }
 }
 
+@Composable
+private fun SymptomToggleRow(
+    label: String,
+    isChecked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    isDanger: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .clickable { onCheckedChange(!isChecked) }
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = label, style = MaterialTheme.typography.bodyMedium, color = PrimaryText)
+            if (isDanger && isChecked) {
+                Text(text = "धोक्याची घंटा (Danger Sign)", style = MaterialTheme.typography.labelSmall, color = DangerRed, fontWeight = FontWeight.Bold)
+            }
+        }
+        Switch(
+            checked = isChecked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = if (isDanger) DangerRed else SecondaryGreen
+            )
+        )
+    }
+}
+
 // -------------------------------------------------------------
-// 10. EVIDENCE REVIEW SCREEN (Traceability)
+// 10. EVIDENCE REVIEW SCREEN (Zero-Hallucination Traceability)
 // -------------------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EvidenceReviewScreen(
     onConfirm: () -> Unit,
     onBack: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MainBackground)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = PrimaryText)
-            }
-            Text(
-                text = "पुरावा पडताळणी (Evidence)",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = PrimaryText
-            )
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = CardBackground),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-        ) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = "फील्ड: रक्तदाब (Blood Pressure)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Surface(shape = RoundedCornerShape(8.dp), color = DangerContainer) {
-                        Text(text = "१४०/९५ mmHg", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = DangerRed, fontWeight = FontWeight.Bold)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text("पुरावा पडताळणी (Evidence Tracing)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("Zero-Hallucination Human Verification", style = MaterialTheme.typography.labelSmall, color = SecondaryGreen)
                     }
-                }
-
-                Text(
-                    text = "आवाजातील मूळ वाक्य (Supporting Transcript):",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = SecondaryText
-                )
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = PrimaryTealContainer.copy(alpha = 0.5f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryTeal.copy(alpha = 0.3f))
-                ) {
-                    Text(
-                        text = "\"तिचा रक्तदाब तपासला असता बीपी १४०/९५ एवढा जास्त भरला आहे.\"",
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = PrimaryTealDark
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MainBackground)
+            )
+        },
+        bottomBar = {
+            Surface(
+                color = Color.White,
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(modifier = Modifier.padding(16.dp)) {
+                    PrimaryButton(
+                        text = "वैद्यकीय नियम तपासा • Validate Rules",
+                        onClick = onConfirm,
+                        trailingIcon = Icons.AutoMirrored.Filled.ArrowForward
                     )
                 }
-
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SecondaryGreen, modifier = Modifier.size(16.dp))
-                    Text(text = "पुरावा १००% सिद्ध • Traceable Evidence Found", style = MaterialTheme.typography.labelSmall, color = SecondaryGreen)
+            }
+        },
+        containerColor = MainBackground
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Trust & Traceability Header Banner
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = SecondaryGreenContainer,
+                border = androidx.compose.foundation.BorderStroke(1.dp, SecondaryGreen.copy(alpha = 0.3f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.Verified, contentDescription = null, tint = SecondaryGreenDark, modifier = Modifier.size(22.dp))
+                    Column {
+                        Text(
+                            text = "प्रत्येक निष्कर्षाचा मूळ पुरावा (Source Linked)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = SecondaryGreenDark
+                        )
+                        Text(
+                            text = "AI ने काढलेला प्रत्येक आकडा आवाजातील शब्दाशी थेट जोडलेला आहे.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SecondaryGreenDark
+                        )
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.weight(1f))
+            // Evidence Cards
+            EvidenceFieldCard(
+                label = "रक्तदाब (Blood Pressure)",
+                value = "140/95",
+                unit = "mmHg",
+                supportingPhrase = "तिचा रक्तदाब तपासला असता बीपी १४०/९५ एवढा जास्त भरला आहे.",
+                isConcerning = true,
+                confidence = 0.98f
+            )
 
-        Button(
-            onClick = onConfirm,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
-        ) {
-            Text(
-                text = "वैद्यकीय इशारे तपासा • Validate Rules",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+            EvidenceFieldCard(
+                label = "वजन (Body Weight)",
+                value = "54.0",
+                unit = "kg",
+                supportingPhrase = "वजन ५४ किलो आहे.",
+                isConcerning = false,
+                confidence = 0.99f
+            )
+
+            EvidenceFieldCard(
+                label = "हिमोग्लोबिन (Hemoglobin)",
+                value = "10.2",
+                unit = "g/dL",
+                supportingPhrase = "हिमोग्लोबिन १०.२ ग्रॅम भरले.",
+                isConcerning = true,
+                confidence = 0.96f
+            )
+
+            EvidenceFieldCard(
+                label = "लक्षण: तीव्र डोकेदुखी (Headache)",
+                value = "Reported (आहे)",
+                supportingPhrase = "तिला गेल्या दोन दिवसांपासून डोकेदुखीचा त्रास होत आहे",
+                isConcerning = true,
+                confidence = 0.95f
+            )
+
+            EvidenceFieldCard(
+                label = "लक्षण: पायावर सूज (Pedal Edema)",
+                value = "Mild Edema (हलकी सूज)",
+                supportingPhrase = "आणि पायावर हलकी सूज आहे.",
+                isConcerning = true,
+                confidence = 0.93f
             )
         }
     }
@@ -2143,6 +2470,7 @@ fun EvidenceReviewScreen(
 // -------------------------------------------------------------
 // 11. VALIDATION SCREEN (High-Risk Rules & Warning Triage)
 // -------------------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ValidationScreen(
     onFinalSubmit: () -> Unit,
@@ -2154,160 +2482,199 @@ fun ValidationScreen(
     var isConfirmed by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MainBackground)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-            Text(
-                text = "वैद्यकीय पडताळणी इशारे",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = PrimaryText
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text("वैद्यकीय नियम पडताळणी", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("Clinical Decision Support Protocols", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MainBackground)
             )
-        }
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            color = DangerContainer,
-            border = androidx.compose.foundation.BorderStroke(1.dp, DangerRed.copy(alpha = 0.4f))
-        ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = DangerRed)
-                    Text("उच्च रक्तदाब इशारा (Gestational Hypertension)", fontWeight = FontWeight.Bold, color = DangerRed)
-                }
-                Text(
-                    text = "रक्तदाब १४०/९५ mmHg सामान्य मर्यादेपेक्षा जास्त आहे. मातेला डोकेदुखी व सूज असल्याने त्वरित प्राथमिक आरोग्य केंद्रात (PHC) डॉक्टरांकडे पाठवा.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = PrimaryText
-                )
-            }
-        }
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            color = Color(0xFFFEF7E0),
-            border = androidx.compose.foundation.BorderStroke(1.dp, WarningAmber.copy(alpha = 0.4f))
-        ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.Info, contentDescription = null, tint = WarningAmber)
-                    Text("हिमोग्लोबिन अलर्ट (Mild Anemia)", fontWeight = FontWeight.Bold, color = WarningAmber)
-                }
-                Text(
-                    text = "हिमोग्लोबिन १०.२ g/dL (अपेक्षित: >= ११.० g/dL). आयर्न-फॉलिक ॲसिड गोळ्यांचा नियमित डोस सुरू ठेवा.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = PrimaryText
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { isConfirmed = !isConfirmed }
-        ) {
-            Checkbox(
-                checked = isConfirmed,
-                onCheckedChange = { isConfirmed = it },
-                colors = CheckboxDefaults.colors(checkedColor = PrimaryTeal)
-            )
-            Text(
-                text = "मी सर्व माहिती तपासली असून ती खरी व योग्य असल्याची खात्री करत आहे.",
-                style = MaterialTheme.typography.bodySmall,
-                color = PrimaryText
-            )
-        }
-
-        Button(
-            onClick = {
-                isSubmitting = true
-                val draftId = "REC-PUN-${System.currentTimeMillis() % 100000}"
-                
-                // 1. Save locally in SQLite immediately (Offline-First resilience)
-                val localDraft = DraftVisit(
-                    id = draftId,
-                    beneficiaryId = "BEN-MH-PUN-0841",
-                    beneficiaryName = "सुनिता संजय शिंदे",
-                    language = "mr-IN",
-                    transcript = "सुनिता शिंदे, वय २४ वर्षे, २८ आठवडे गरोदर आहेत. रक्तदाब १४०/९५ एवढा जास्त आला आहे आणि डोकेदुखी आहे. वजन ५४ किलो भरले आहे. हिमोग्लोबिन १०.२ ग्रॅम आहे. बाळाची हालचाल व्यवस्थित आहे. त्यांना खेड शिवापूर ग्रामीण रुग्णालयात पाठवले आहे.",
-                    bpSystolic = 140,
-                    bpDiastolic = 95,
-                    weightKg = 54.0f,
-                    hemoglobinGDl = 10.2f,
-                    gestationalWeeks = 28,
-                    headache = true,
-                    pedalEdema = true,
-                    fetalMovementNormal = true,
-                    syncStatus = "SYNC_PENDING"
-                )
-                repository.saveLocalDraft(localDraft)
-
-                // 2. Dispatch to FastAPI PostgreSQL backend
-                coroutineScope.launch {
-                    val createReq = CreateVisitRequest(
-                        beneficiaryId = "BEN-MH-PUN-0841",
-                        ashaId = repository.getTokenManager().getUserId() ?: "USR-ASHA-001",
-                        language = "mr-IN",
-                        transcript = localDraft.transcript,
-                        bpSystolic = localDraft.bpSystolic,
-                        bpDiastolic = localDraft.bpDiastolic,
-                        weightKg = localDraft.weightKg,
-                        hemoglobinGDl = localDraft.hemoglobinGDl,
-                        gestationalWeeks = localDraft.gestationalWeeks,
-                        headache = localDraft.headache,
-                        pedalEdema = localDraft.pedalEdema,
-                        fetalMovementNormal = localDraft.fetalMovementNormal,
-                        evidenceSpans = listOf(
-                            EvidenceSpanDto("blood_pressure", "140/95 mmHg", 49, 74, "रक्तदाब १४०/९५ एवढा जास्त आला आहे", 0.98f, "concerning"),
-                            EvidenceSpanDto("weight", "54 kg", 96, 113, "वजन ५४ किलो भरले आहे", 0.99f, "extracted"),
-                            EvidenceSpanDto("hemoglobin", "10.2 g/dL", 115, 137, "हिमोग्लोबिन १०.२ ग्रॅम आहे", 0.96f, "extracted"),
-                            EvidenceSpanDto("headache", "Reported (Severe)", 79, 94, "डोकेदुखी आहे", 0.95f, "concerning")
+        },
+        bottomBar = {
+            Surface(
+                color = Color.White,
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Confirmation Checkbox
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { isConfirmed = !isConfirmed }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Checkbox(
+                            checked = isConfirmed,
+                            onCheckedChange = { isConfirmed = it },
+                            colors = CheckboxDefaults.colors(checkedColor = PrimaryTeal)
                         )
+                        Text(
+                            text = "मी सर्व माहिती तपासली असून ती खरी व योग्य असल्याची खात्री करत आहे. (Human Verification)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PrimaryText,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    PrimaryButton(
+                        text = "अंतिम खात्री व सबमिट करा • Submit Record",
+                        onClick = {
+                            isSubmitting = true
+                            val draftId = "REC-PUN-${System.currentTimeMillis() % 100000}"
+
+                            val localDraft = DraftVisit(
+                                id = draftId,
+                                beneficiaryId = "BEN-MH-PUN-0841",
+                                beneficiaryName = "सुनिता संजय शिंदे",
+                                language = "mr-IN",
+                                transcript = "सुनिता शिंदे, वय २४ वर्षे, २८ आठवडे गरोदर आहेत. रक्तदाब १४०/९५ एवढा जास्त आला आहे आणि डोकेदुखी आहे. वजन ५४ किलो भरले आहे. हिमोग्लोबिन १०.२ ग्रॅम आहे. बाळाची हालचाल व्यवस्थित आहे. त्यांना खेड शिवापूर ग्रामीण रुग्णालयात पाठवले आहे.",
+                                bpSystolic = 140,
+                                bpDiastolic = 95,
+                                weightKg = 54.0f,
+                                hemoglobinGDl = 10.2f,
+                                gestationalWeeks = 28,
+                                headache = true,
+                                pedalEdema = true,
+                                fetalMovementNormal = true,
+                                syncStatus = "SYNC_PENDING"
+                            )
+                            repository.saveLocalDraft(localDraft)
+
+                            coroutineScope.launch {
+                                val createReq = CreateVisitRequest(
+                                    beneficiaryId = "BEN-MH-PUN-0841",
+                                    ashaId = repository.getTokenManager().getUserId() ?: "USR-ASHA-001",
+                                    language = "mr-IN",
+                                    transcript = localDraft.transcript,
+                                    bpSystolic = localDraft.bpSystolic,
+                                    bpDiastolic = localDraft.bpDiastolic,
+                                    weightKg = localDraft.weightKg,
+                                    hemoglobinGDl = localDraft.hemoglobinGDl,
+                                    gestationalWeeks = localDraft.gestationalWeeks,
+                                    headache = localDraft.headache,
+                                    pedalEdema = localDraft.pedalEdema,
+                                    fetalMovementNormal = localDraft.fetalMovementNormal,
+                                    evidenceSpans = listOf(
+                                        EvidenceSpanDto("blood_pressure", "140/95 mmHg", 49, 74, "रक्तदाब १४०/९५ एवढा जास्त आला आहे", 0.98f, "concerning"),
+                                        EvidenceSpanDto("weight", "54 kg", 96, 113, "वजन ५४ किलो भरले आहे", 0.99f, "extracted"),
+                                        EvidenceSpanDto("hemoglobin", "10.2 g/dL", 115, 137, "हिमोग्लोबिन १०.२ ग्रॅम आहे", 0.96f, "extracted"),
+                                        EvidenceSpanDto("headache", "Reported (Severe)", 79, 94, "डोकेदुखी आहे", 0.95f, "concerning")
+                                    )
+                                )
+                                repository.submitVisitRecord(createReq, draftId)
+                                isSubmitting = false
+                                onFinalSubmit()
+                            }
+                        },
+                        isLoading = isSubmitting,
+                        enabled = isConfirmed && !isSubmitting,
+                        containerColor = SecondaryGreen
                     )
-                    repository.submitVisitRecord(createReq, draftId)
-                    isSubmitting = false
-                    onFinalSubmit()
                 }
-            },
-            enabled = isConfirmed && !isSubmitting,
+            }
+        },
+        containerColor = MainBackground
+    ) { padding ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = SecondaryGreen)
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            if (isSubmitting) {
-                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-            } else {
-                Text(
-                    text = "अंतिम खात्री व सबमिट करा",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            // Critical Risk 1: Gestational Hypertension
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = DangerContainer),
+                border = androidx.compose.foundation.BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = DangerRed)
+                        Text(
+                            text = "गंभीर इशारा: उच्च रक्तदाब (Gestational Hypertension)",
+                            fontWeight = FontWeight.Bold,
+                            color = DangerRed,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                    }
+                    Text(
+                        text = "रक्तदाब १४०/९५ mmHg सामान्य मर्यादेपेक्षा जास्त आहे. मातेला डोकेदुखी व पायावर सूज असल्याने प्री-एक्लॅम्प्सियाचा धोका असू शकतो. त्वरित प्राथमिक आरोग्य केंद्रात (PHC) डॉक्टरांकडे पाठवा.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PrimaryText
+                    )
+                }
+            }
+
+            // Warning 2: Mild Anemia
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = WarningContainer),
+                border = androidx.compose.foundation.BorderStroke(1.dp, WarningAmber.copy(alpha = 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = WarningAmber)
+                        Text(
+                            text = "मध्यम इशारा: रक्तक्षय (Mild Anemia)",
+                            fontWeight = FontWeight.Bold,
+                            color = WarningAmber,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                    }
+                    Text(
+                        text = "हिमोग्लोबिन १०.२ g/dL (अपेक्षित: >= ११.० g/dL). आयर्न-फॉलिक ॲसिड (IFA) गोळ्यांचा नियमित डोस सुरू ठेवा व आहाराबाबत मार्गदर्शन करा.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PrimaryText
+                    )
+                }
+            }
+
+            // Safe Sign 3: Fetal movements
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = SecondaryGreenContainer),
+                border = androidx.compose.foundation.BorderStroke(1.dp, SecondaryGreen.copy(alpha = 0.4f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SecondaryGreenDark)
+                    Text(
+                        text = "बाळाची हालचाल नॉर्मल आहे • Fetal Movements Normal",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SecondaryGreenDark
+                    )
+                }
             }
         }
     }
 }
 
 // -------------------------------------------------------------
-// 12. CONFIRMATION SCREEN (Success feedback)
+// 12. CONFIRMATION SCREEN (Success feedback & Next Actions)
 // -------------------------------------------------------------
 @Composable
 fun ConfirmationScreen(
@@ -2322,19 +2689,25 @@ fun ConfirmationScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Surface(
-                modifier = Modifier.size(100.dp),
+                modifier = Modifier.size(96.dp),
                 shape = CircleShape,
-                color = SuccessContainer
+                color = SecondaryGreenContainer,
+                border = androidx.compose.foundation.BorderStroke(2.dp, SecondaryGreen.copy(alpha = 0.4f))
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = SecondaryGreen, modifier = Modifier.size(56.dp))
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Success",
+                        tint = SecondaryGreen,
+                        modifier = Modifier.size(52.dp)
+                    )
                 }
             }
 
@@ -2346,44 +2719,74 @@ fun ConfirmationScreen(
                 textAlign = TextAlign.Center
             )
 
-            Surface(shape = RoundedCornerShape(12.dp), color = Color.White, border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)) {
-                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("नोंद क्रमांक (Record ID)", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
-                    Text("REC-2026-PUN-0914", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = PrimaryTeal)
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = BorderColor)
-                    Text("स्थानिक डेटाबेसमध्ये सुरक्षित (Room DB Saved)", style = MaterialTheme.typography.labelSmall, color = SecondaryGreen)
-                    Text("ANM पुनरावलोकनासाठी पाठवले गेले", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
+            Text(
+                text = "माहिती स्थानिक डेटाबेसमध्ये सुरक्षित झाली असून ANM कडे पाठवली गेली आहे.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = SecondaryText,
+                textAlign = TextAlign.Center
+            )
+
+            // Confirmation Summary Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("नोंद क्रमांक (Record ID)", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
+                        Text("REC-2026-PUN-0914", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = PrimaryTeal)
+                    }
+                    HorizontalDivider(color = BorderColor)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("माता (Beneficiary)", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
+                        Text("सुनिता संजय शिंदे", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = PrimaryText)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("सिंक स्थिती (Sync Status)", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
+                        StatusChip(status = "pending_anm_review", label = "ANM पुनरावलोकन प्रलंबित")
+                    }
                 }
             }
         }
 
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(
+        // Action Buttons
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            PrimaryButton(
+                text = "मुख्य पृष्ठावर जा • Go to Dashboard",
                 onClick = onGoHome,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
-            ) {
-                Text("मुख्य पृष्ठावर जा • Home", fontWeight = FontWeight.Bold)
-            }
+                containerColor = PrimaryTeal
+            )
 
-            OutlinedButton(
-                onClick = onViewHistory,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text("इतिहास पहा • View History", fontWeight = FontWeight.SemiBold)
-            }
+            SecondaryButton(
+                text = "इतिहास पहा • View History",
+                onClick = onViewHistory
+            )
         }
     }
 }
 
 // -------------------------------------------------------------
-// 13. VISIT HISTORY SCREEN
+// 13. VISIT HISTORY SCREEN (SQLite Drafts + Server Records)
 // -------------------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -2393,6 +2796,7 @@ fun VisitHistoryScreen(
     val context = LocalContext.current
     val repository = remember { AppRepository(context) }
     val localDrafts = remember { mutableStateListOf<DraftVisit>() }
+    var selectedFilter by remember { mutableStateOf("all") } // all, offline, reviewed
 
     LaunchedEffect(Unit) {
         localDrafts.clear()
@@ -2402,7 +2806,7 @@ fun VisitHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("मागील भेट नोंदी (History)", fontWeight = FontWeight.Bold) },
+                title = { Text("मागील भेट नोंदी (Visit History)", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -2413,50 +2817,111 @@ fun VisitHistoryScreen(
         },
         containerColor = MainBackground
     ) { padding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Live Local SQLite Drafts first
-            items(localDrafts) { draft ->
-                HistoryRecordCard(
-                    patientName = draft.beneficiaryName,
-                    date = "स्थानिक नोंद • ${if (draft.syncStatus == "SYNCED") "सर्व्हरवर सिंक पूर्ण" else "सिंक प्रलंबित"}",
-                    vitals = "BP: ${draft.bpSystolic}/${draft.bpDiastolic} | Hb: ${draft.hemoglobinGDl ?: "--"} | वजन: ${draft.weightKg ?: "--"} किलो",
-                    status = if (draft.syncStatus == "SYNCED") "Synced to PostgreSQL" else "Local Draft (Offline)",
-                    isPending = draft.syncStatus != "SYNCED"
-                )
+            // Filter Chips Row
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                item {
+                    FilterChip(
+                        selected = selectedFilter == "all",
+                        onClick = { selectedFilter = "all" },
+                        label = { Text("सर्व नोंदी (All)") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = PrimaryTealContainer,
+                            selectedLabelColor = PrimaryTealDark
+                        )
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = selectedFilter == "offline",
+                        onClick = { selectedFilter = "offline" },
+                        label = { Text("स्थानिक ड्राफ्ट (${localDrafts.size})") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = WarningContainer,
+                            selectedLabelColor = WarningAmber
+                        )
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = selectedFilter == "reviewed",
+                        onClick = { selectedFilter = "reviewed" },
+                        label = { Text("मंजूर (Approved)") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = SecondaryGreenContainer,
+                            selectedLabelColor = SecondaryGreenDark
+                        )
+                    )
+                }
             }
 
-            item {
-                HistoryRecordCard(
-                    patientName = "सुनिता संजय शिंदे",
-                    date = "३१ ऑक्टोबर २०२६ • ०९:४० AM",
-                    vitals = "BP: १४०/९५ | Hb: १०.२ | वजन: ५४ किलो",
-                    status = "Pending ANM Review",
-                    isPending = true
-                )
-            }
-            item {
-                HistoryRecordCard(
-                    patientName = "पूजा राहुल पाटील",
-                    date = "३० ऑक्टोबर २०२६ • ०२:१५ PM",
-                    vitals = "BP: ११८/७६ | Hb: ११.५ | वजन: ४९ किलो",
-                    status = "ANM Approved",
-                    isPending = false
-                )
-            }
-            item {
-                HistoryRecordCard(
-                    patientName = "कविता रमेश गायकवाड",
-                    date = "२८ ऑक्टोबर २०२६ • ११:०० AM",
-                    vitals = "BP: १३०/८५ | Hb: ९.८ | वजन: ५२ किलो",
-                    status = "ANM Approved",
-                    isPending = false
-                )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Live SQLite Drafts from Frontline Device
+                if (selectedFilter != "reviewed") {
+                    items(localDrafts) { draft ->
+                        VisitCard(
+                            recordId = draft.id,
+                            beneficiaryName = draft.beneficiaryName,
+                            date = "स्थानिक नोंद • ${if (draft.syncStatus == "SYNCED") "सर्व्हरवर सिंक पूर्ण" else "सिंक प्रलंबित"}",
+                            bp = "${draft.bpSystolic}/${draft.bpDiastolic}",
+                            weight = "${draft.weightKg ?: "--"} kg",
+                            hb = "${draft.hemoglobinGDl ?: "--"} g/dL",
+                            status = if (draft.syncStatus == "SYNCED") "approved" else "pending",
+                            onClick = { }
+                        )
+                    }
+                }
+
+                if (selectedFilter != "offline") {
+                    item {
+                        VisitCard(
+                            recordId = "REC-PUN-0841",
+                            beneficiaryName = "सुनिता संजय शिंदे",
+                            date = "३१ ऑक्टोबर २०२६ • ०९:४० AM",
+                            bp = "१४०/९५",
+                            weight = "५४.० kg",
+                            hb = "१०.२ g/dL",
+                            status = "pending",
+                            onClick = { }
+                        )
+                    }
+                    item {
+                        VisitCard(
+                            recordId = "REC-PUN-0720",
+                            beneficiaryName = "पूजा राहुल पाटील",
+                            date = "३० ऑक्टोबर २०२६ • ०२:१५ PM",
+                            bp = "११८/७६",
+                            weight = "४९.० kg",
+                            hb = "११.५ g/dL",
+                            status = "approved",
+                            onClick = { }
+                        )
+                    }
+                    item {
+                        VisitCard(
+                            recordId = "REC-PUN-0691",
+                            beneficiaryName = "कविता रमेश गायकवाड",
+                            date = "२८ ऑक्टोबर २०२६ • ११:०० AM",
+                            bp = "१३०/८५",
+                            weight = "५२.० kg",
+                            hb = "९.८ g/dL",
+                            status = "approved",
+                            onClick = { }
+                        )
+                    }
+                }
             }
         }
     }
@@ -2473,6 +2938,11 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val repository = remember { AppRepository(context) }
+    val tokenManager = repository.getTokenManager()
+    val isProd = tokenManager.isProductionMode()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -2485,55 +2955,75 @@ fun SettingsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MainBackground)
             )
         },
+        bottomBar = {
+            Surface(
+                color = Color.White,
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(modifier = Modifier.padding(16.dp)) {
+                    PrimaryButton(
+                        text = "लॉग आऊट / वापरकर्ता बदला • Logout",
+                        onClick = {
+                            tokenManager.clearSession()
+                            onLogout()
+                        },
+                        containerColor = DangerRed,
+                        leadingIcon = Icons.Default.Close
+                    )
+                }
+            }
+        },
         containerColor = MainBackground
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // Worker Profile Card
-            Surface(
+            Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
-                color = Color.White,
-                shadowElevation = 2.dp
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Surface(
-                        modifier = Modifier.size(56.dp),
-                        shape = CircleShape,
-                        color = PrimaryTealContainer
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryTealContainer),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(32.dp))
-                        }
+                        Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(32.dp))
                     }
-                    Column {
-                        Text(userProfile.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(userProfile.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = PrimaryText)
                         Text(userProfile.phone, style = MaterialTheme.typography.bodySmall, color = SecondaryText)
-                        Text(userProfile.subCenter, style = MaterialTheme.typography.labelSmall, color = PrimaryTeal)
+                        Text(userProfile.subCenter, style = MaterialTheme.typography.labelSmall, color = PrimaryTeal, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
 
             // Options List
-            Surface(
+            Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
             ) {
                 Column {
                     ListItem(
                         headlineContent = { Text("भाषा बदला (Change Language)") },
-                        supportingContent = { Text("मराठी / हिन्दी") },
+                        supportingContent = { Text("मराठी / हिन्दी (Dialect Selection)") },
                         leadingContent = { Icon(Icons.Default.Translate, contentDescription = null, tint = PrimaryTeal) },
                         trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = SecondaryText) },
                         modifier = Modifier.clickable { onNavigateLanguage() }
@@ -2541,106 +3031,25 @@ fun SettingsScreen(
                     HorizontalDivider(color = BorderColor)
                     ListItem(
                         headlineContent = { Text("आवाज ओळख इंजिन (ASR Engine)") },
-                        supportingContent = { Text("Sarvam Saaras v3 Indic") },
+                        supportingContent = { Text("Sarvam Saaras v3 Indic AI") },
                         leadingContent = { Icon(Icons.Default.Mic, contentDescription = null, tint = SecondaryGreen) }
                     )
                     HorizontalDivider(color = BorderColor)
                     ListItem(
                         headlineContent = { Text("ऑफलाइन डेटाबेस (Local Storage)") },
-                        supportingContent = { Text("Room Database Cache • Synced") },
+                        supportingContent = { Text("SQLite Room Cache • Synced") },
                         leadingContent = { Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SecondaryGreen) }
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            val context = LocalContext.current
-            Button(
-                onClick = {
-                    AppRepository(context).getTokenManager().clearSession()
-                    onLogout()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = DangerRed)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = null)
-                    Text("लॉग आऊट / वापरकर्ता बदला (Logout)", fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
-}
-
-// -------------------------------------------------------------
-// HELPER OBSERVATION COMPONENTS
-// -------------------------------------------------------------
-@Composable
-fun ObservationRow(label: String, value: String, isDanger: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = label, style = MaterialTheme.typography.bodyMedium, color = PrimaryText)
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = if (isDanger) DangerContainer else SuccessContainer
-        ) {
-            Text(
-                text = value,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = if (isDanger) DangerRed else SuccessGreen
-            )
-        }
-    }
-}
-
-@Composable
-fun HistoryRecordCard(
-    patientName: String,
-    date: String,
-    vitals: String,
-    status: String,
-    isPending: Boolean
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(patientName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isPending) Color(0xFFFEF7E0) else SuccessContainer
-                ) {
-                    Text(
-                        text = status,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isPending) WarningAmber else SuccessGreen
+                    HorizontalDivider(color = BorderColor)
+                    ListItem(
+                        headlineContent = { Text("पर्यावरण मोड (Environment Mode)") },
+                        supportingContent = {
+                            Text(if (isProd) "उत्पादन मोड (Production Mode)" else "विकास मोड (Development Mode)")
+                        },
+                        leadingContent = { Icon(Icons.Default.Shield, contentDescription = null, tint = if (isProd) SecondaryGreen else WarningAmber) }
                     )
                 }
             }
-            Text(vitals, style = MaterialTheme.typography.bodySmall, color = PrimaryText)
-            Text(date, style = MaterialTheme.typography.labelSmall, color = SecondaryText)
         }
     }
 }
