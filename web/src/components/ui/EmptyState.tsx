@@ -5,6 +5,7 @@ interface EmptyStateProps {
   icon?: LucideIcon;
   title: string;
   description?: string;
+  subtitle?: string;
   action?: {
     label: string;
     onClick: () => void;
@@ -16,9 +17,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   icon: Icon = FolderSearch,
   title,
   description,
+  subtitle,
   action,
   className = ''
 }) => {
+  const text = description || subtitle;
   return (
     <div className={`flex flex-col items-center justify-center p-8 sm:p-12 text-center bg-white rounded-2xl border border-[#E5EBEF] shadow-clinical-card ${className}`}>
       <div className="w-16 h-16 rounded-2xl bg-[#E6F4F5] flex items-center justify-center text-[#087F8C] mb-4">
@@ -29,9 +32,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         {title}
       </h3>
 
-      {description && (
+      {text && (
         <p className="text-xs sm:text-sm text-[#718096] max-w-sm mt-1.5 leading-relaxed">
-          {description}
+          {text}
         </p>
       )}
 

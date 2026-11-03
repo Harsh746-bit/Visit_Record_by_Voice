@@ -1,7 +1,21 @@
 import React, { useState } from 'react';
-import { Search, Eye, AlertTriangle } from 'lucide-react';
+import { 
+  Eye, 
+  AlertTriangle, 
+  LayoutGrid, 
+  Table as TableIcon, 
+  ShieldAlert, 
+  Filter,
+  Activity,
+  FileCheck2,
+  Clock
+} from 'lucide-react';
 import { StructuredVisit } from '../../types';
-import { StatusBadge } from '../../components/common/Badge';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { SearchBar } from '../../components/ui/SearchBar';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { VisitCard } from '../../components/ui/VisitCard';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 interface VisitRecordsQueueViewProps {
   records: StructuredVisit[];
@@ -17,6 +31,8 @@ export const VisitRecordsQueueView: React.FC<VisitRecordsQueueViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(filterPendingOnly ? 'pending' : 'all');
   const [languageFilter, setLanguageFilter] = useState<string>('all');
+  const [highRiskOnly, setHighRiskOnly] = useState<boolean>(false);
+  const [displayMode, setDisplayMode] = useState<'table' | 'grid'>('table');
 
   const filteredRecords = records.filter(r => {
     const matchesSearch = 
@@ -26,107 +42,256 @@ export const VisitRecordsQueueView: React.FC<VisitRecordsQueueViewProps> = ({
     
     const matchesStatus = statusFilter === 'all' || r.anmReviewStatus === statusFilter;
     const matchesLanguage = languageFilter === 'all' || r.language === languageFilter;
+    
+    const hasDangerSign = r.validationWarnings && r.validationWarnings.some(w => w.severity === 'critical');
+    const matchesRisk = !highRiskOnly || hasDangerSign;
 
-    return matchesSearch && matchesStatus && matchesLanguage;
+    return matchesSearch && matchesStatus && matchesLanguage && matchesRisk;
   });
 
+  const pendingCount = records.filter(r => r.anmReviewStatus === 'pending').length;
+  const criticalCount = records.filter(r => r.validationWarnings?.some(w => w.severity === 'critical')).length;
+
   return (
-    <div className="space-y-4">
-      {/* Search & Filter Header */}
-      <div className="bg-white p-5 rounded-2xl border border-[#E4ECEC] shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-[#172B3A]">
-            {filterPendingOnly ? 'Review Queue (Pending ANM Sign-off)' : 'All Spoken Visit Records'}
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Frontline voice-documented visits transcribed via Sarvam Saaras v3 with verified evidence spans.
-          </p>
+    <div className="space-y-6">
+      {/* Header */}
+      <PageHeader
+        title={filterPendingOnly ? 'Clinical Review Queue' : 'Spoken Maternal Visit Records'}
+        subtitle={
+          filterPendingOnly
+            ? 'Frontline visits awaiting clinical sign-off, evidence audit, or return for correction.'
+            : 'Permanent archive of voice-documented encounters transcribed via Sarvam Saaras v3 with verbatim text spans.'
+        }
+        badge={
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#E6F4F5] text-[#087F8C] border border-[#087F8C]/20">
+              <Clock className="w-3.5 h-3.5" />
+              <span>{pendingCount} Pending</span>
+            </span>
+            {criticalCount > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#FCE8E8] text-[#C53030] border border-rose-200">
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>{criticalCount} High Risk</span>
+              </span>
+            )}
+          </div>
+        }
+        actions={
+          <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-[#E5EBEF] shadow-clinical-card">
+            <button
+              onClick={() => setDisplayMode('table')}
+              className={`p-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                displayMode === 'table'
+                  ? 'bg-[#087F8C] text-white shadow-xs'
+                  : 'text-slate-500 hover:text-[#172B3A] hover:bg-slate-50'
+              }`}
+              title="Table View"
+            >
+              <TableIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Table</span>
+            </button>
+            <button
+              onClick={() => setDisplayMode('grid')}
+              className={`p-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                displayMode === 'grid'
+                  ? 'bg-[#087F8C] text-white shadow-xs'
+                  : 'text-slate-500 hover:text-[#172B3A] hover:bg-slate-50'
+              }`}
+              title="Grid Cards"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">Cards</span>
+            </button>
+          </div>
+        }
+      />
+
+      {/* Search and Filters Bar */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E5EBEF] shadow-clinical-card space-y-3.5">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          <SearchBar
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search by mother's name, record ID, or ASHA worker..."
+            className="w-full lg:max-w-md"
+          />
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Status Selector */}
+            {!filterPendingOnly && (
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="text-xs py-2.5 px-3 rounded-xl border border-[#E5EBEF] bg-white text-[#172B3A] font-medium focus:outline-none focus:border-[#087F8C] cursor-pointer shadow-clinical-card"
+              >
+                <option value="all">All Review Statuses ({records.length})</option>
+                <option value="pending">Pending Sign-off ({pendingCount})</option>
+                <option value="reviewed">Approved Records</option>
+                <option value="returned">Returned for Correction</option>
+              </select>
+            )}
+
+            {/* Language Selector */}
+            <select
+              value={languageFilter}
+              onChange={(e) => setLanguageFilter(e.target.value)}
+              className="text-xs py-2.5 px-3 rounded-xl border border-[#E5EBEF] bg-white text-[#172B3A] font-medium focus:outline-none focus:border-[#087F8C] cursor-pointer shadow-clinical-card"
+            >
+              <option value="all">All Spoken Dialects</option>
+              <option value="mr-IN">मराठी (Marathi)</option>
+              <option value="hi-IN">हिन्दी (Hindi)</option>
+            </select>
+
+            {/* High Risk Toggle Button */}
+            <button
+              onClick={() => setHighRiskOnly(!highRiskOnly)}
+              className={`text-xs py-2 px-3 rounded-xl border flex items-center gap-1.5 font-semibold transition-all cursor-pointer ${
+                highRiskOnly
+                  ? 'bg-rose-50 border-rose-300 text-[#C53030] shadow-xs'
+                  : 'bg-white border-[#E5EBEF] text-[#718096] hover:text-[#172B3A] hover:bg-slate-50'
+              }`}
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
+              <span>High Risk Only</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-          {/* Search */}
-          <div className="relative w-full md:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search beneficiary, record, ASHA..."
-              className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#087F8C]"
-            />
-          </div>
-
-          {!filterPendingOnly && (
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="text-xs py-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#087F8C]"
-            >
-              <option value="all">All Review Statuses</option>
-              <option value="pending">Pending Review</option>
-              <option value="reviewed">Approved</option>
-              <option value="returned">Returned</option>
-            </select>
-          )}
-
-          <select
-            value={languageFilter}
-            onChange={(e) => setLanguageFilter(e.target.value)}
-            className="text-xs py-2 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#087F8C]"
+        {/* Quick Filter Chips */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#E5EBEF] text-xs">
+          <span className="text-[#718096] flex items-center gap-1 font-medium">
+            <Filter className="w-3 h-3 text-[#087F8C]" /> Quick filters:
+          </span>
+          <button
+            onClick={() => { setStatusFilter('all'); setHighRiskOnly(false); setLanguageFilter('all'); }}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition ${
+              statusFilter === 'all' && !highRiskOnly && languageFilter === 'all'
+                ? 'bg-[#087F8C] text-white font-semibold'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
           >
-            <option value="all">All Languages</option>
-            <option value="mr-IN">मराठी (Marathi)</option>
-            <option value="hi-IN">हिन्दी (Hindi)</option>
-          </select>
+            All Encounters ({records.length})
+          </button>
+          <button
+            onClick={() => { setStatusFilter('pending'); setHighRiskOnly(false); }}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition ${
+              statusFilter === 'pending' && !highRiskOnly
+                ? 'bg-amber-500 text-white font-semibold'
+                : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+            }`}
+          >
+            Pending Verification ({pendingCount})
+          </button>
+          <button
+            onClick={() => { setHighRiskOnly(true); }}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition ${
+              highRiskOnly
+                ? 'bg-rose-600 text-white font-semibold'
+                : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+            }`}
+          >
+            Clinical Danger Signs ({criticalCount})
+          </button>
+          <button
+            onClick={() => { setLanguageFilter('mr-IN'); }}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition ${
+              languageFilter === 'mr-IN'
+                ? 'bg-teal-700 text-white font-semibold'
+                : 'bg-teal-50 text-[#087F8C] hover:bg-teal-100'
+            }`}
+          >
+            मराठी रेकॉर्ड्स
+          </button>
         </div>
       </div>
 
-      {/* Table Card */}
-      <div className="bg-white rounded-2xl border border-[#E4ECEC] shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-[#F7FAFA] text-slate-500 text-xs uppercase font-medium border-b border-[#E4ECEC]">
-              <tr>
-                <th className="px-5 py-3.5">Record ID</th>
-                <th className="px-4 py-3.5">Beneficiary</th>
-                <th className="px-4 py-3.5">ASHA Worker</th>
-                <th className="px-4 py-3.5">Encounter Date</th>
-                <th className="px-4 py-3.5">Language</th>
-                <th className="px-4 py-3.5">Clinical Vitals</th>
-                <th className="px-4 py-3.5">Review Status</th>
-                <th className="px-5 py-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredRecords.length > 0 ? (
-                filteredRecords.map((rec) => {
-                  const hasDanger = rec.validationWarnings.some(w => w.severity === 'critical');
+      {/* Main Content Area */}
+      {filteredRecords.length === 0 ? (
+        <EmptyState
+          icon={FileCheck2}
+          title="No Visit Records Found"
+          subtitle="No recorded encounters match your active search terms and filter criteria."
+          action={{
+            label: 'Clear All Filters',
+            onClick: () => {
+              setSearchTerm('');
+              setStatusFilter('all');
+              setLanguageFilter('all');
+              setHighRiskOnly(false);
+            }
+          }}
+        />
+      ) : displayMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredRecords.map((rec) => (
+            <VisitCard
+              key={rec.recordId}
+              record={rec}
+              onSelect={() => onSelectRecord(rec)}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Clinical Data Table */
+        <div className="bg-white rounded-2xl border border-[#E5EBEF] shadow-clinical-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#F5F8FA] text-[#718096] text-xs uppercase font-semibold border-b border-[#E5EBEF]">
+                <tr>
+                  <th className="px-5 py-3.5">Record ID</th>
+                  <th className="px-4 py-3.5">Beneficiary Mother</th>
+                  <th className="px-4 py-3.5">ASHA Field Worker</th>
+                  <th className="px-4 py-3.5">Encounter Date</th>
+                  <th className="px-4 py-3.5">Language</th>
+                  <th className="px-4 py-3.5">Clinical Vitals</th>
+                  <th className="px-4 py-3.5">Sign-off Status</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E5EBEF]">
+                {filteredRecords.map((rec) => {
+                  const hasDanger = rec.validationWarnings && rec.validationWarnings.some(w => w.severity === 'critical');
                   return (
-                    <tr key={rec.recordId} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-5 py-3.5 font-mono text-xs font-semibold text-[#087F8C]">
-                        {rec.recordId}
+                    <tr 
+                      key={rec.recordId} 
+                      onClick={() => onSelectRecord(rec)}
+                      className="hover:bg-[#F5F8FA]/70 transition-colors cursor-pointer group"
+                    >
+                      <td className="px-5 py-3.5">
+                        <span className="font-mono text-xs font-bold text-[#087F8C]">
+                          {rec.recordId}
+                        </span>
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="font-semibold text-xs text-[#172B3A]">{rec.beneficiaryName}</div>
-                        <div className="text-[11px] text-slate-400 font-mono">{rec.beneficiaryId}</div>
+                        <div className="font-bold text-xs text-[#172B3A] group-hover:text-[#087F8C] transition">
+                          {rec.beneficiaryName}
+                        </div>
+                        <div className="text-[11px] text-[#718096] font-mono">
+                          ID: {rec.beneficiaryId}
+                        </div>
                       </td>
-                      <td className="px-4 py-3.5 text-xs text-slate-700">
+                      <td className="px-4 py-3.5 text-xs text-[#172B3A] font-medium">
                         {rec.ashaName}
                       </td>
-                      <td className="px-4 py-3.5 text-xs text-slate-500">
+                      <td className="px-4 py-3.5 text-xs text-[#718096]">
                         {new Date(rec.recordedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                        <span className="inline-block px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-slate-100 text-[#172B3A]">
                           {rec.language === 'mr-IN' ? 'मराठी' : 'हिन्दी'}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-xs">
-                        <div className="font-medium text-slate-800 flex items-center gap-1.5">
-                          BP: {rec.measurements.bloodPressureSystolic.value}/{rec.measurements.bloodPressureDiastolic.value} mmHg
-                          {hasDanger && <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+                        <div className="font-semibold text-[#172B3A] flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-[#087F8C]" />
+                          <span>BP: {rec.measurements.bloodPressureSystolic.value}/{rec.measurements.bloodPressureDiastolic.value} mmHg</span>
+                          {hasDanger && (
+                            <span title="Critical danger signs flagged">
+                              <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0 animate-bounce" />
+                            </span>
+                          )}
                         </div>
-                        <div className="text-slate-500">
+                        <div className="text-[11px] text-[#718096] mt-0.5">
                           Hb: {rec.measurements.hemoglobinGDl.value} g/dL • {rec.measurements.weightKg.value} kg
                         </div>
                       </td>
@@ -135,27 +300,24 @@ export const VisitRecordsQueueView: React.FC<VisitRecordsQueueViewProps> = ({
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <button
-                          onClick={() => onSelectRecord(rec)}
-                          className="px-3 py-1.5 rounded-lg bg-teal-50 text-[#087F8C] hover:bg-[#087F8C] hover:text-white transition-all text-xs font-semibold inline-flex items-center gap-1 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectRecord(rec);
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-teal-50 text-[#087F8C] hover:bg-[#087F8C] hover:text-white transition-all text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          Inspect Record
+                          <span>Audit Evidence</span>
                         </button>
                       </td>
                     </tr>
                   );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400 text-xs italic">
-                    No matching visit records found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
