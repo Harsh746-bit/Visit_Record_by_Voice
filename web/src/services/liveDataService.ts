@@ -147,6 +147,7 @@ export class LiveDataService {
 
   // 1. Fetch live records from FastAPI backend
   public async getRecords(): Promise<StructuredVisit[]> {
+    const isProduction = import.meta.env.VITE_APP_MODE === 'production' || import.meta.env.PROD;
     try {
       const res = await apiClient.getVisits();
       if (res && res.records && res.records.length > 0) {
@@ -155,13 +156,17 @@ export class LiveDataService {
         return liveMapped;
       }
     } catch (e) {
-      console.warn('API getVisits failed, using offline fallback', e);
+      console.warn('API getVisits failed', e);
+      if (isProduction) {
+        throw new Error('उत्पादन सर्व्हरशी संपर्क होऊ शकला नाही. (Unable to connect to production backend. Please verify your network and server status.)');
+      }
     }
-    return [...this.localRecords];
+    return isProduction ? [] : [...this.localRecords];
   }
 
   // 2. Fetch live beneficiaries from FastAPI backend
   public async getBeneficiaries(): Promise<Beneficiary[]> {
+    const isProduction = import.meta.env.VITE_APP_MODE === 'production' || import.meta.env.PROD;
     try {
       const res = await apiClient.getBeneficiaries();
       if (res && res.beneficiaries && res.beneficiaries.length > 0) {
@@ -170,13 +175,17 @@ export class LiveDataService {
         return liveMapped;
       }
     } catch (e) {
-      console.warn('API getBeneficiaries failed, using offline fallback', e);
+      console.warn('API getBeneficiaries failed', e);
+      if (isProduction) {
+        throw new Error('उत्पादन सर्व्हरशी संपर्क होऊ शकला नाही. (Unable to connect to production backend for beneficiaries.)');
+      }
     }
-    return [...this.localBeneficiaries];
+    return isProduction ? [] : [...this.localBeneficiaries];
   }
 
   // 3. Fetch ASHA workers
   public async getWorkers(): Promise<AshaWorker[]> {
+    const isProduction = import.meta.env.VITE_APP_MODE === 'production' || import.meta.env.PROD;
     try {
       const res = await apiClient.getWorkers();
       if (res && res.workers && res.workers.length > 0) {
@@ -184,9 +193,12 @@ export class LiveDataService {
         return res.workers;
       }
     } catch (e) {
-      console.warn('API getWorkers failed, using offline fallback', e);
+      console.warn('API getWorkers failed', e);
+      if (isProduction) {
+        throw new Error('उत्पादन सर्व्हरशी संपर्क होऊ शकला नाही. (Unable to connect to production backend for health workers.)');
+      }
     }
-    return [...this.localWorkers];
+    return isProduction ? [] : [...this.localWorkers];
   }
 
   // 4. Update ANM Review Decision in PostgreSQL

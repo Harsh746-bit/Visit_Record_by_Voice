@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 import requests
 
 from backend.app.models.user import OtpVerification, normalize_phone
+from backend.app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +24,13 @@ class Msg91Provider(SmsProvider):
     Production SMS provider using MSG91 Indian SMS Gateway.
     """
     def __init__(self, auth_key: Optional[str] = None, template_id: Optional[str] = None):
-        self.auth_key = auth_key or os.getenv("MSG91_AUTH_KEY")
-        self.template_id = template_id or os.getenv("MSG91_OTP_TEMPLATE_ID")
+        self.auth_key = auth_key or settings.MSG91_AUTH_KEY or os.getenv("MSG91_AUTH_KEY")
+        self.template_id = template_id or settings.MSG91_OTP_TEMPLATE_ID or os.getenv("MSG91_OTP_TEMPLATE_ID")
 
     def send_otp(self, phone: str, otp: str) -> bool:
         if not self.auth_key or not self.template_id:
             raise RuntimeError(
-                "MSG91 SMS credentials missing. Please set MSG91_AUTH_KEY and MSG91_OTP_TEMPLATE_ID in .env."
+                "MSG91 SMS credentials missing. Required environment variables: MSG91_AUTH_KEY and MSG91_OTP_TEMPLATE_ID."
             )
         try:
             url = f"https://control.msg91.com/api/v5/otp?template_id={self.template_id}&mobile={phone}&authkey={self.auth_key}&otp={otp}"
@@ -45,14 +46,28 @@ class Msg91Provider(SmsProvider):
             raise e
 
 class ConsoleSmsProvider(SmsProvider):
-    """Development / test SMS provider."""
+    """Development / test SMS provider. Strictly disallowed in production mode."""
     def send_otp(self, phone: str, otp: str) -> bool:
-        logger.info(f"[SMS SIMULATOR] Dispatched OTP to {phone} (Test Mode)")
+        logger.info(f"[SMS CONSOLE SIMULATOR] Dispatched OTP to {phone} (Test Mode)")
         return True
 
 def get_sms_provider() -> SmsProvider:
-    if os.getenv("MSG91_AUTH_KEY"):
-        return Msg91Provider()
+    auth_key = settings.MSG91_AUTH_KEY or os.getenv("MSG91_AUTH_KEY", "")
+    template_id = settings.MSG91_OTP_TEMPLATE_ID or os.getenv("MSG91_OTP_TEMPLATE_ID", "")
+    is_valid_msg91 = bool(auth_key and template_id and template_id != "your_template_id")
+
+    if settings.ENVIRONMENT == "production":
+        # In production mode, Console provider is strictly forbidden
+        if not is_valid_msg91:
+            raise RuntimeError(
+                "Production SMS delivery is not configured. Required environment variables: "
+                "MSG91_AUTH_KEY and MSG91_OTP_TEMPLATE_ID."
+            )
+        return Msg91Provider(auth_key, template_id)
+        
+    # Development mode: prefer MSG91 if configured, fallback to Console
+    if settings.SMS_PROVIDER == "msg91" and is_valid_msg91:
+        return Msg91Provider(auth_key, template_id)
     return ConsoleSmsProvider()
 
 class OtpService:
@@ -103,7 +118,7 @@ class OtpService:
 
         # Send via configured provider
         provider = get_sms_provider()
-        dev_otp = otp_plain if isinstance(provider, ConsoleSmsProvider) else None
+        dev_otp = otp_plain if (isinstance(provider, ConsoleSmsProvider) or settings.ENVIRONMENT != "production") else None
         try:
             provider.send_otp(phone, otp_plain)
             return True, "OTP sent successfully.", dev_otp

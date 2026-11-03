@@ -38,7 +38,9 @@ data class Beneficiary(
     val gestationalWeeks: Int? = null,
     val isHighRisk: Boolean = false,
     val rchId: String,
-    val contactPhone: String
+    val contactPhone: String,
+    val edd: String? = null,
+    val highRiskReasons: List<String> = emptyList()
 )
 
 data class VisitRecord(

@@ -1,3 +1,4 @@
+import os
 import logging
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
@@ -16,6 +17,13 @@ from backend.app.data.synthetic_data import (
 )
 
 logger = logging.getLogger(__name__)
+
+SEED_PASSWORDS = {
+    "admin": os.getenv("SEED_ADMIN_PASSWORD", "Adm#Secure_99!Joshi"),
+    "anm": os.getenv("SEED_ANM_PASSWORD", "Anm#Pr0d_42!Deshmukh"),
+    "asha1": os.getenv("SEED_ASHA1_PASSWORD", "Asha#98!Rukmini"),
+    "asha2": os.getenv("SEED_ASHA2_PASSWORD", "Asha#94!Surekha")
+}
 
 def init_db(db: Session = None):
     """
@@ -39,7 +47,7 @@ def init_db(db: Session = None):
                 "full_name": "Dr. Anand Joshi",
                 "full_name_mr": "डॉ. आनंद जोशी",
                 "role": UserRole.ADMIN,
-                "password": "Admin@123",
+                "password": SEED_PASSWORDS["admin"],
                 "district": "Pune",
                 "phc": "District Health Office, Pune",
                 "sub_center": "Central Administrative Circle",
@@ -52,7 +60,7 @@ def init_db(db: Session = None):
                 "full_name": "Sujata Deshmukh",
                 "full_name_mr": "सुजाता देशमुख",
                 "role": UserRole.ANM,
-                "password": "Anm@12345",
+                "password": SEED_PASSWORDS["anm"],
                 "district": "Pune",
                 "phc": "Khed Shivapur Primary Health Center",
                 "sub_center": "Khed Shivapur Circle",
@@ -65,7 +73,7 @@ def init_db(db: Session = None):
                 "full_name": "Rukmini Vithal Jadhav",
                 "full_name_mr": "रुक्मिणी विठ्ठल जाधव",
                 "role": UserRole.ASHA,
-                "password": "Asha@1234",
+                "password": SEED_PASSWORDS["asha1"],
                 "district": "Pune",
                 "phc": "Khed Shivapur Primary Health Center",
                 "sub_center": "Khed Shivapur Sub-Center",
@@ -78,7 +86,7 @@ def init_db(db: Session = None):
                 "full_name": "Surekha Kailas More",
                 "full_name_mr": "सुरेखा कैलास मोरे",
                 "role": UserRole.ASHA,
-                "password": "Asha@1234",
+                "password": SEED_PASSWORDS["asha2"],
                 "district": "Nashik",
                 "phc": "Trimbakeshwar Rural Health Center",
                 "sub_center": "Trimbakeshwar Sub-Center",
@@ -89,8 +97,8 @@ def init_db(db: Session = None):
         for u_data in users_to_seed:
             clean_phone = normalize_phone(u_data["phone"])
             existing = db.query(User).filter((User.phone == clean_phone) | (User.phone == u_data["phone"])).first()
+            pwd_hash = hash_password(u_data["password"])
             if not existing:
-                pwd_hash = hash_password(u_data["password"])
                 user = User(
                     id=u_data["id"],
                     phone=clean_phone,
@@ -108,6 +116,7 @@ def init_db(db: Session = None):
                 db.add(user)
             else:
                 existing.phone = clean_phone
+                existing.password_hash = pwd_hash
 
         db.commit()
 

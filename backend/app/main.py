@@ -19,6 +19,7 @@ from backend.app.models.system import Notification, AuditLog
 from backend.app.security.deps import (
     get_current_user, get_current_active_user, require_roles
 )
+from backend.app.security.tokens import decode_access_token
 from backend.app.api.v1.auth import router as auth_router
 from backend.app.schemas.visit import (
     StructuredVisitRecord, 
@@ -179,6 +180,13 @@ async def transcribe_audio(
     Integrates Sarvam Saaras v3 multilingual speech-to-text.
     Preserves exact verbatim speech in Marathi or Hindi.
     """
+    if settings.ENVIRONMENT == "production":
+        if not audio_file:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Valid audio file is required in production mode. Demo scenarios are disabled."
+            )
+
     if audio_file:
         audio_bytes = await audio_file.read()
         if sarvam_speech_service.is_available and len(audio_bytes) > 0:
@@ -199,7 +207,17 @@ async def transcribe_audio(
                     "is_live_sarvam": True
                 }
             except Exception as e:
+                if settings.ENVIRONMENT == "production":
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"Live Sarvam STT failed: {e}. Demo substitution is disabled in production mode."
+                    )
                 logger.error(f"Live Sarvam STT failed: {e}. Falling back to demo scenario.")
+        elif settings.ENVIRONMENT == "production":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Valid audio file content is required in production mode."
+            )
 
     if scenario and scenario in DEMO_VISIT_SCENARIOS:
         chosen = DEMO_VISIT_SCENARIOS[scenario]
@@ -301,9 +319,9 @@ def extract_evidence_and_vitals(transcript: str) -> Tuple[Dict[str, Any], List[D
         })
 
     # 3. Hemoglobin: e.g. हिमोग्लोबिन 10.2 ग्रॅम
-    hb_match = re.search(r'(?:हिमोग्लोबिन|hb|हिमोग्लोबिनची पातळी)?\s*(\d{1,2}(?:\.\d+)?)\s*(?:ग्रॅम|g/dl|gm)?', ascii_transcript, re.IGNORECASE)
+    hb_match = re.search(r'(?:(?:हिमोग्लोबिन|hb|हिमोग्लोबिनची पातळी)\s*[:=]?\s*(\d{1,2}(?:\.\d+)?)\s*(?:ग्रॅम|g/dl|gm)?)|(?:(\d{1,2}(?:\.\d+)?)\s*(?:ग्रॅम|g/dl|gm))', ascii_transcript, re.IGNORECASE)
     if hb_match:
-        val = float(hb_match.group(1))
+        val = float(hb_match.group(1)) if hb_match.group(1) is not None else float(hb_match.group(2))
         if 3.0 <= val <= 20.0:
             start_char, end_char = hb_match.span()
             vitals["hemoglobin_g_dl"] = val
@@ -723,10 +741,30 @@ async def review_visit_record(
 # --- REAL-TIME WEBSOCKET ROUTES ---
 
 @app.websocket("/ws/anm/{circle_id}")
-async def websocket_anm_endpoint(websocket: WebSocket, circle_id: str):
+async def websocket_anm_endpoint(
+    websocket: WebSocket,
+    circle_id: str,
+    token: Optional[str] = Query(None)
+):
     """
     Subscribes ANM Supervisor to live circle updates (new visits submitted, high risk alerts).
+    Enforces JWT authentication & role authorization.
+    Rejects unauthorized or invalid connections with WS_1008_POLICY_VIOLATION.
     """
+    if settings.ENVIRONMENT == "production" or token is not None:
+        if not token:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+        try:
+            payload = decode_access_token(token)
+            role = str(payload.get("role", "")).upper()
+            if role not in ["ANM", "ADMIN"]:
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+        except Exception:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
     await ws_manager.connect_anm(circle_id, websocket)
     try:
         while True:
@@ -735,10 +773,29 @@ async def websocket_anm_endpoint(websocket: WebSocket, circle_id: str):
         ws_manager.disconnect_anm(circle_id, websocket)
 
 @app.websocket("/ws/asha/{worker_id}")
-async def websocket_asha_endpoint(websocket: WebSocket, worker_id: str):
+async def websocket_asha_endpoint(
+    websocket: WebSocket,
+    worker_id: str,
+    token: Optional[str] = Query(None)
+):
     """
     Subscribes ASHA frontline worker to live review remarks and supervisor approvals.
+    Enforces JWT authentication.
+    Rejects unauthorized or invalid connections with WS_1008_POLICY_VIOLATION.
     """
+    if settings.ENVIRONMENT == "production" or token is not None:
+        if not token:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+        try:
+            payload = decode_access_token(token)
+            if not payload.get("sub"):
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+        except Exception:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
     await ws_manager.connect_asha(worker_id, websocket)
     try:
         while True:

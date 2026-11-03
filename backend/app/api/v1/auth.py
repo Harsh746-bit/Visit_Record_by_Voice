@@ -24,7 +24,7 @@ class RegisterRequest(BaseModel):
     phone: str = Field(..., json_schema_extra={"example": "+91 98810 99401"})
     full_name: str = Field(..., json_schema_extra={"example": "Rukmini Vithal Jadhav"})
     full_name_mr: Optional[str] = Field(None, json_schema_extra={"example": "रुक्मिणी विठ्ठल जाधव"})
-    password: str = Field(..., min_length=6, json_schema_extra={"example": "Asha@1234"})
+    password: str = Field(..., min_length=6, json_schema_extra={"example": "Strong#Auth_2026"})
     role: UserRole = Field(default=UserRole.ASHA)
     district: str = Field(default="Pune")
     phc: str = Field(default="Khed Shivapur Primary Health Center")
@@ -33,7 +33,7 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     phone: str = Field(..., json_schema_extra={"example": "+91 98810 99401"})
-    password: str = Field(..., json_schema_extra={"example": "Asha@1234"})
+    password: str = Field(..., json_schema_extra={"example": "Strong#Auth_2026"})
 
 class RefreshRequest(BaseModel):
     refresh_token: str

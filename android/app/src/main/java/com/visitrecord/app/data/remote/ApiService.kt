@@ -10,6 +10,16 @@ interface ApiService {
         @Body request: LoginRequest
     ): Response<LoginResponse>
 
+    @POST("/api/v1/auth/otp/send")
+    suspend fun sendOtp(
+        @Body request: OtpSendRequest
+    ): Response<OtpSendResponse>
+
+    @POST("/api/v1/auth/otp/verify")
+    suspend fun verifyOtp(
+        @Body request: OtpVerifyRequest
+    ): Response<OtpVerifyResponse>
+
     @POST("/api/v1/auth/refresh")
     suspend fun refreshToken(
         @Body request: RefreshRequest

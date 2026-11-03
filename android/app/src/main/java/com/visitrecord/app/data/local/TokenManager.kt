@@ -19,6 +19,7 @@ class TokenManager(context: Context) {
         private const val KEY_USER_SUB_CENTER = "user_sub_center"
         private const val KEY_USER_PHC = "user_phc"
         private const val KEY_SERVER_URL = "server_url"
+        private const val KEY_PRODUCTION_MODE = "is_production_mode"
         private const val DEFAULT_SERVER_URL = "http://10.0.2.2:8000" // Android Emulator to Host localhost
     }
 
@@ -33,6 +34,12 @@ class TokenManager(context: Context) {
 
     fun getRefreshToken(): String? = prefs.getString(KEY_REFRESH_TOKEN, null)
 
+    fun isProductionMode(): Boolean = prefs.getBoolean(KEY_PRODUCTION_MODE, false)
+
+    fun setProductionMode(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PRODUCTION_MODE, enabled).apply()
+    }
+
     fun saveUser(user: UserDto) {
         prefs.edit()
             .putString(KEY_USER_ID, user.id)
@@ -44,11 +51,11 @@ class TokenManager(context: Context) {
             .apply()
     }
 
-    fun getUserId(): String = prefs.getString(KEY_USER_ID, "ASHA-PUN-104") ?: "ASHA-PUN-104"
-    fun getUserName(): String = prefs.getString(KEY_USER_NAME, "रुक्मिणी जाधव") ?: "रुक्मिणी जाधव"
-    fun getUserPhone(): String = prefs.getString(KEY_USER_PHONE, "+91 98810 99401") ?: "+91 98810 99401"
-    fun getUserSubCenter(): String = prefs.getString(KEY_USER_SUB_CENTER, "खेड शिवापूर उपकेंद्र") ?: "खेड शिवापूर उपकेंद्र"
-    fun getUserPhc(): String = prefs.getString(KEY_USER_PHC, "खेड शिवापूर प्रा.आ.केंद्र") ?: "खेड शिवापूर प्रा.आ.केंद्र"
+    fun getUserId(): String? = prefs.getString(KEY_USER_ID, null)
+    fun getUserName(): String? = prefs.getString(KEY_USER_NAME, null)
+    fun getUserPhone(): String? = prefs.getString(KEY_USER_PHONE, null)
+    fun getUserSubCenter(): String? = prefs.getString(KEY_USER_SUB_CENTER, null)
+    fun getUserPhc(): String? = prefs.getString(KEY_USER_PHC, null)
 
     fun getServerUrl(): String = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
 
@@ -62,6 +69,12 @@ class TokenManager(context: Context) {
         prefs.edit()
             .remove(KEY_ACCESS_TOKEN)
             .remove(KEY_REFRESH_TOKEN)
+            .remove(KEY_USER_ID)
+            .remove(KEY_USER_NAME)
+            .remove(KEY_USER_PHONE)
+            .remove(KEY_USER_ROLE)
+            .remove(KEY_USER_SUB_CENTER)
+            .remove(KEY_USER_PHC)
             .apply()
     }
 }

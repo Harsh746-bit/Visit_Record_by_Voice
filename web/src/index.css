@@ -3,15 +3,32 @@
 @layer base {
   :root {
     --primary-teal: #087F8C;
+    --primary-teal-dark: #065A63;
+    --primary-teal-light: #E6F4F5;
+    
     --secondary-green: #15966A;
-    --main-bg: #F7FAFA;
+    --secondary-green-dark: #0F6E4E;
+    --secondary-green-light: #E1F6ED;
+    
+    --main-bg: #F5F8FA;
+    --surface: #FFFFFF;
     --card-bg: #FFFFFF;
+    
     --primary-text: #172B3A;
     --secondary-text: #718096;
-    --border-color: #E4ECEC;
+    --muted-text: #A0AEC0;
+    
+    --border-color: #E5EBEF;
+    --border-hover: #D0DCE3;
+    
     --warning-color: #E8A23A;
+    --warning-light: #FEF3DC;
+    
     --danger-color: #DC5B5B;
+    --danger-light: #FCE8E8;
+    
     --success-color: #15966A;
+    --success-light: #E1F6ED;
   }
 
   body {
@@ -27,7 +44,21 @@
   /* Support for Marathi and Hindi Devanagari typography */
   .font-devanagari {
     font-family: 'Noto Sans Devanagari', 'Inter', system-ui, sans-serif;
+    line-height: 1.6;
   }
+}
+
+/* Custom Clinical Shadows */
+.shadow-clinical-card {
+  box-shadow: 0 1px 3px 0 rgba(23, 43, 58, 0.04), 0 1px 2px -1px rgba(23, 43, 58, 0.04);
+}
+
+.shadow-clinical-hover {
+  box-shadow: 0 4px 12px -2px rgba(23, 43, 58, 0.08), 0 2px 6px -2px rgba(23, 43, 58, 0.04);
+}
+
+.shadow-clinical-modal {
+  box-shadow: 0 12px 24px -4px rgba(23, 43, 58, 0.12), 0 4px 8px -2px rgba(23, 43, 58, 0.06);
 }
 
 /* Custom Scrollbars */
@@ -54,4 +85,16 @@
 
 .wave-bar {
   animation: pulse-wave 1.2s ease-in-out infinite;
+}
+
+/* Shimmer Loading Animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #F1F5F7 25%, #E5EBEF 50%, #F1F5F7 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }

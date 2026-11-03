@@ -7,10 +7,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -23,25 +25,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
+import com.visitrecord.app.R
 import com.visitrecord.app.data.local.DraftVisit
+import com.visitrecord.app.data.model.AshaUserProfile
+import com.visitrecord.app.data.model.Beneficiary
 import com.visitrecord.app.data.remote.CreateVisitRequest
 import com.visitrecord.app.data.remote.EvidenceSpanDto
 import com.visitrecord.app.data.repository.AppRepository
-import kotlinx.coroutines.launch
-import com.visitrecord.app.R
-import com.visitrecord.app.data.model.AshaUserProfile
-import com.visitrecord.app.data.model.Beneficiary
+import com.visitrecord.app.ui.components.*
 import com.visitrecord.app.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // -------------------------------------------------------------
-// 1. SPLASH SCREEN (with official logo)
+// 1. SPLASH SCREEN (Maharashtra Public Health Department Branding)
 // -------------------------------------------------------------
 @Composable
 fun SplashScreen(
@@ -50,30 +56,62 @@ fun SplashScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF065A63), PrimaryText)))
-            .padding(24.dp),
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        PrimaryTealDark,
+                        Color(0xFF0A5863),
+                        PrimaryText
+                    )
+                )
+            )
+            .padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Spacer(modifier = Modifier.height(30.dp))
-
+        // Government Badge Header
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            modifier = Modifier.padding(top = 16.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White.copy(alpha = 0.12f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "महाराष्ट्र शासन • सार्वजनिक आरोग्य विभाग",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+
+        // Center Hero Logo & Title
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Surface(
                 modifier = Modifier
-                    .size(140.dp)
+                    .size(130.dp)
                     .clip(RoundedCornerShape(32.dp)),
                 color = Color.White,
-                shadowElevation = 12.dp
+                shadowElevation = 14.dp
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.app_logo),
                     contentDescription = "Visit Record Logo",
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(12.dp)
+                        .padding(14.dp)
                 )
             }
 
@@ -81,57 +119,71 @@ fun SplashScreen(
                 text = "Visit Record by Voice",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = Color.White,
+                textAlign = TextAlign.Center
             )
 
+            // Tagline Pill
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(24.dp),
                 color = SecondaryGreen.copy(alpha = 0.25f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, SecondaryGreen.copy(alpha = 0.5f))
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, SecondaryGreen)
             ) {
-                Text(
-                    text = "बोल. पडताळा. नोंदवा.",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "बोल. पडताळा. नोंदवा.",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
 
             Text(
-                text = "महाराष्ट्र शासन आरोग्य सेवा\nFrontline Voice Documentation Platform for ASHA Workers",
+                text = "आरोग्य सेविका व्हॉइस डॉक्युमेंटेशन प्लॅटफॉर्म\nFrontline AI Clinical Documentation for ASHA & ANM",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f),
+                color = Color.White.copy(alpha = 0.85f),
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 24.dp)
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
 
-        Button(
-            onClick = onGetStarted,
+        // Bottom CTA
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
+                .padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "सुरू करा • Get Started",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
-            }
+            PrimaryButton(
+                text = "सुरू करा • Get Started",
+                onClick = onGetStarted,
+                trailingIcon = Icons.AutoMirrored.Filled.ArrowForward,
+                containerColor = PrimaryTeal
+            )
+
+            Text(
+                text = "Secure • Offline First • Sarvam Saaras AI",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.6f)
+            )
         }
     }
 }
 
 // -------------------------------------------------------------
-// 2. ONBOARDING SCREEN (3 Steps with logo)
+// 2. ONBOARDING SCREEN (3 Modern Guided Steps)
 // -------------------------------------------------------------
 @Composable
 fun OnboardingScreen(
@@ -147,13 +199,16 @@ fun OnboardingScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
+        // Top Header
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(46.dp),
                 shape = RoundedCornerShape(12.dp),
                 color = Color.White,
                 shadowElevation = 2.dp
@@ -161,7 +216,7 @@ fun OnboardingScreen(
                 Image(
                     painter = painterResource(id = R.drawable.app_logo),
                     contentDescription = "Logo",
-                    modifier = Modifier.padding(4.dp)
+                    modifier = Modifier.padding(6.dp)
                 )
             }
             TextButton(onClick = onContinue) {
@@ -169,17 +224,19 @@ fun OnboardingScreen(
             }
         }
 
+        // Step Content Card
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
             Surface(
-                modifier = Modifier.size(90.dp),
+                modifier = Modifier.size(92.dp),
                 shape = CircleShape,
                 color = when (step) {
                     1 -> PrimaryTealContainer
-                    2 -> Color(0xFFE6F4EA)
-                    else -> Color(0xFFFEF7E0)
+                    2 -> SecondaryGreenContainer
+                    else -> WarningContainer
                 }
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -214,9 +271,9 @@ fun OnboardingScreen(
 
             Text(
                 text = when (step) {
-                    1 -> "मराठी किंवा हिंदीत घरभेटीचे वर्णन करा. वैद्यकीय शब्द उदा. बीपी, हिमोग्लोबिन नैसर्गिकरीत्या बोला."
-                    2 -> "Sarvam Saaras द्वारे आवाज मजकुरात बदलेल आणि प्रत्येक निष्कर्षाचा मूळ वाक्याशी थेट पुरावा जोडला जाईल."
-                    else -> "सर्व माहिती तपासून ANM कडे एका क्लिकवर पाठवा. कोणताही खोटा डेटा तयार होणार नाही."
+                    1 -> "मराठी किंवा हिंदीत घरभेटीचे वर्णन करा. बीपी, हिमोग्लोबिन, सूज, गर्भाचे आठवडे नैसर्गिक आवाजात नोंदवा."
+                    2 -> "Sarvam Saaras द्वारे आवाज मजकुरात बदलेल आणि प्रत्येक वैद्यकीय निष्कर्षाचा मूळ वाक्याशी थेट पुरावा जोडला जाईल."
+                    else -> "माहिती तपासून ANM कडे एका क्लिकवर पाठवा. मानवी नियंत्रणाखाली अचूक डिजिटल नोंद."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = SecondaryText,
@@ -230,7 +287,7 @@ fun OnboardingScreen(
                     Box(
                         modifier = Modifier
                             .height(8.dp)
-                            .width(if (step == index) 24.dp else 8.dp)
+                            .width(if (step == index) 28.dp else 8.dp)
                             .clip(RoundedCornerShape(4.dp))
                             .background(if (step == index) PrimaryTeal else BorderColor)
                     )
@@ -238,27 +295,31 @@ fun OnboardingScreen(
             }
         }
 
-        Button(
-            onClick = {
-                if (step < 3) step++ else onContinue()
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
+        // Bottom Actions
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
+            PrimaryButton(
                 text = if (step < 3) "पुढे जा • Next" else "लॉगिन करा • Go to Login",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                onClick = {
+                    if (step < 3) step++ else onContinue()
+                },
+                trailingIcon = if (step < 3) Icons.AutoMirrored.Filled.ArrowForward else null
             )
+
+            if (step > 1) {
+                SecondaryButton(
+                    text = "मागे • Back",
+                    onClick = { step-- }
+                )
+            }
         }
     }
 }
 
 // -------------------------------------------------------------
-// 3. DYNAMIC LOGIN SCREEN (Interactive user input + Demo Profiles)
+// 3. DYNAMIC LOGIN SCREEN (Password & Real OTP Authentication)
 // -------------------------------------------------------------
 @Composable
 fun LoginScreen(
@@ -268,15 +329,34 @@ fun LoginScreen(
     val context = LocalContext.current
     val repository = remember { AppRepository(context) }
     val coroutineScope = rememberCoroutineScope()
+    val tokenManager = repository.getTokenManager()
+    val isProd = tokenManager.isProductionMode()
 
-    var name by remember { mutableStateOf(currentUser.name) }
-    var phone by remember { mutableStateOf("+91 98810 99401") }
-    var subCenter by remember { mutableStateOf(currentUser.subCenter) }
-    var pin by remember { mutableStateOf("Asha@1234") }
+    var loginMode by remember { mutableIntStateOf(0) } // 0: Password, 1: OTP
+    var name by remember { mutableStateOf(if (isProd) "" else currentUser.name) }
+    var phone by remember { mutableStateOf(if (isProd) "" else "+91 98810 99401") }
+    var subCenter by remember { mutableStateOf(if (isProd) "" else currentUser.subCenter) }
+    var pin by remember { mutableStateOf(if (isProd) "" else "Asha#98!Rukmini") }
+    var passwordVisible by remember { mutableStateOf(false) }
+
+    // OTP states
+    var otpValue by remember { mutableStateOf("") }
+    var otpSent by remember { mutableStateOf(false) }
+    var testModeOtp by remember { mutableStateOf<String?>(null) }
+    var resendCooldown by remember { mutableIntStateOf(0) }
+
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var serverUrl by remember { mutableStateOf(repository.getTokenManager().getServerUrl()) }
     var showServerConfig by remember { mutableStateOf(false) }
+
+    // Countdown effect for OTP resend
+    LaunchedEffect(resendCooldown) {
+        if (resendCooldown > 0) {
+            delay(1000)
+            resendCooldown--
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -285,14 +365,14 @@ fun LoginScreen(
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         // Official App Logo
         Surface(
             modifier = Modifier
-                .size(100.dp)
+                .size(96.dp)
                 .clip(RoundedCornerShape(24.dp)),
             color = Color.White,
             shadowElevation = 6.dp
@@ -300,7 +380,9 @@ fun LoginScreen(
             Image(
                 painter = painterResource(id = R.drawable.app_logo),
                 contentDescription = "Logo",
-                modifier = Modifier.fillMaxSize().padding(8.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
             )
         }
 
@@ -312,102 +394,154 @@ fun LoginScreen(
         )
 
         Text(
-            text = "तुमची माहिती प्रविष्ट करा किंवा खालील प्रोफाइल निवडा",
+            text = "महाराष्ट्र आरोग्य सेवा • Frontline Worker Portal",
             style = MaterialTheme.typography.bodySmall,
             color = SecondaryText,
             textAlign = TextAlign.Center
         )
 
-        if (errorMessage != null) {
+        // Production Mode Banner vs Dev Banner
+        if (isProd) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFFFEBEE),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE57373))
+                color = Color(0xFFE8F5E9),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF81C784))
             ) {
                 Text(
-                    text = errorMessage!!,
-                    color = Color(0xFFC62828),
-                    style = MaterialTheme.typography.bodySmall,
+                    text = "🔒 उत्पादन मोड • Production Mode (Real Credentials Required)",
+                    color = Color(0xFF2E7D32),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(12.dp),
                     textAlign = TextAlign.Center
                 )
             }
         }
 
-        // Quick Demo Profile Selector Chips
-        Text(
-            text = "झटपट डेमो प्रोफाइल (Quick Select):",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = PrimaryTeal,
-            modifier = Modifier.align(Alignment.Start)
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // Login Mode Selector Tabs: Password vs OTP
+        TabRow(
+            selectedTabIndex = loginMode,
+            containerColor = Color.White,
+            contentColor = PrimaryTeal,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, BorderColor, RoundedCornerShape(12.dp))
         ) {
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable {
-                        name = "रुक्मिणी जाधव"
-                        phone = "+91 98810 99401"
-                        subCenter = "खेड शिवापूर उपकेंद्र, पुणे"
-                        pin = "Asha@1234"
-                    },
-                shape = RoundedCornerShape(12.dp),
-                color = if (phone.contains("98810")) PrimaryTealContainer else Color.White,
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (phone.contains("98810")) PrimaryTeal else BorderColor)
-            ) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    Text("रुक्मिणी जाधव", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = PrimaryText)
-                    Text("खेड शिवापूर (पुणे)", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
+            Tab(
+                selected = loginMode == 0,
+                onClick = {
+                    loginMode = 0
+                    errorMessage = null
+                },
+                text = {
+                    Text(
+                        "पासवर्ड लॉगिन",
+                        fontWeight = if (loginMode == 0) FontWeight.Bold else FontWeight.Normal,
+                        color = if (loginMode == 0) PrimaryTeal else SecondaryText
+                    )
                 }
-            }
+            )
+            Tab(
+                selected = loginMode == 1,
+                onClick = {
+                    loginMode = 1
+                    errorMessage = null
+                },
+                text = {
+                    Text(
+                        "OTP लॉगिन (SMS)",
+                        fontWeight = if (loginMode == 1) FontWeight.Bold else FontWeight.Normal,
+                        color = if (loginMode == 1) PrimaryTeal else SecondaryText
+                    )
+                }
+            )
+        }
 
+        if (errorMessage != null) {
             Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable {
-                        name = "सुरेखा मोरे"
-                        phone = "+91 94220 88219"
-                        subCenter = "त्र्यंबकेश्वर उपकेंद्र, नाशिक"
-                        pin = "Asha@1234"
-                    },
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = if (phone.contains("88219")) PrimaryTealContainer else Color.White,
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (phone.contains("88219")) PrimaryTeal else BorderColor)
+                color = DangerContainer,
+                border = androidx.compose.foundation.BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f))
             ) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    Text("सुरेखा मोरे", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = PrimaryText)
-                    Text("त्र्यंबकेश्वर (नाशिक)", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = DangerRed, modifier = Modifier.size(18.dp))
+                    Text(
+                        text = errorMessage!!,
+                        color = DangerRed,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         }
 
-        HorizontalDivider(color = BorderColor)
-
-        // Editable Input Fields
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("आशा सेविकेचे नाव (Worker Name)") },
-            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryTeal) },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = PrimaryTeal,
-                unfocusedBorderColor = BorderColor
+        // Quick Demo Profile Selector (Development Mode Only)
+        if (!isProd) {
+            Text(
+                text = "झटपट डेमो प्रोफाइल (Development Mode):",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = PrimaryTeal,
+                modifier = Modifier.align(Alignment.Start)
             )
-        )
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            name = "रुक्मिणी जाधव"
+                            phone = "+91 98810 99401"
+                            subCenter = "खेड शिवापूर उपकेंद्र, पुणे"
+                            pin = "Asha#98!Rukmini"
+                        },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (phone.contains("98810")) PrimaryTealContainer else Color.White,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (phone.contains("98810")) PrimaryTeal else BorderColor)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text("रुक्मिणी जाधव", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = PrimaryText)
+                        Text("खेड शिवापूर (पुणे)", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            name = "सुरेखा मोरे"
+                            phone = "+91 94220 88219"
+                            subCenter = "त्र्यंबकेश्वर उपकेंद्र, नाशिक"
+                            pin = "Asha#94!Surekha"
+                        },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (phone.contains("88219")) PrimaryTealContainer else Color.White,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (phone.contains("88219")) PrimaryTeal else BorderColor)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text("सुरेखा मोरे", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = PrimaryText)
+                        Text("त्र्यंबकेश्वर (नाशिक)", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
+                    }
+                }
+            }
+        }
+
+        // Common Mobile Number Field
         OutlinedTextField(
             value = phone,
             onValueChange = { phone = it },
-            label = { Text("मोबाईल क्रमांक / ASHA ID") },
+            label = { Text("मोबाईल क्रमांक (Mobile Number)") },
             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = PrimaryTeal) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -416,34 +550,137 @@ fun LoginScreen(
             )
         )
 
-        OutlinedTextField(
-            value = subCenter,
-            onValueChange = { subCenter = it },
-            label = { Text("उपकेंद्र / गाव (Sub-Center / Village)") },
-            leadingIcon = { Icon(Icons.Default.Place, contentDescription = null, tint = PrimaryTeal) },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = PrimaryTeal,
-                unfocusedBorderColor = BorderColor
+        if (loginMode == 0) {
+            // PASSWORD MODE FIELDS
+            OutlinedTextField(
+                value = pin,
+                onValueChange = { pin = it },
+                label = { Text("पासवर्ड / सुरक्षा पिन (Password)") },
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = PrimaryTeal) },
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                            tint = SecondaryText
+                        )
+                    }
+                },
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = PrimaryTeal,
+                    unfocusedBorderColor = BorderColor
+                )
             )
-        )
 
-        OutlinedTextField(
-            value = pin,
-            onValueChange = { pin = it },
-            label = { Text("सुरक्षा पिन / पासवर्ड (Password)") },
-            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = PrimaryTeal) },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = PrimaryTeal,
-                unfocusedBorderColor = BorderColor
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("आशा सेविकेचे नाव (Worker Name)") },
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryTeal) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = PrimaryTeal,
+                    unfocusedBorderColor = BorderColor
+                )
             )
-        )
 
-        // Backend Server URL Configuration toggle
+            OutlinedTextField(
+                value = subCenter,
+                onValueChange = { subCenter = it },
+                label = { Text("उपकेंद्र / गाव (Sub-Center / Village)") },
+                leadingIcon = { Icon(Icons.Default.Place, contentDescription = null, tint = PrimaryTeal) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = PrimaryTeal,
+                    unfocusedBorderColor = BorderColor
+                )
+            )
+        } else {
+            // OTP MODE FIELDS
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = otpValue,
+                    onValueChange = { if (it.length <= 6) otpValue = it },
+                    label = { Text("६-अंकी OTP (6-Digit OTP)") },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = PrimaryTeal) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryTeal,
+                        unfocusedBorderColor = BorderColor
+                    )
+                )
+
+                Button(
+                    onClick = {
+                        isLoading = true
+                        errorMessage = null
+                        repository.getTokenManager().setServerUrl(serverUrl)
+
+                        coroutineScope.launch {
+                            val result = repository.sendOtp(phone)
+                            isLoading = false
+                            result.onSuccess { resp ->
+                                otpSent = true
+                                resendCooldown = 60
+                                if (resp.testModeOtp != null) {
+                                    testModeOtp = resp.testModeOtp
+                                }
+                            }.onFailure { err ->
+                                errorMessage = "OTP पाठवता आला नाही: ${err.message}"
+                            }
+                        }
+                    },
+                    enabled = !isLoading && resendCooldown == 0 && phone.isNotBlank(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal),
+                    modifier = Modifier.height(54.dp)
+                ) {
+                    Text(
+                        text = if (resendCooldown > 0) "${resendCooldown}s" else if (otpSent) "पुन्हा पाठवा" else "OTP मिळवा",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            if (testModeOtp != null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { otpValue = testModeOtp ?: "" },
+                    shape = RoundedCornerShape(10.dp),
+                    color = PrimaryTealContainer,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryTeal)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "डेमो OTP: $testModeOtp (क्लिक करून भरा)",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryTealDark
+                        )
+                        Icon(Icons.Default.Check, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+        }
+
+        // Server URL toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -476,62 +713,65 @@ fun LoginScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
-        Button(
+        // Main Login / Verify Button
+        PrimaryButton(
+            text = if (loginMode == 0) "लॉगिन करा • Login" else "OTP तपासा व लॉगिन करा • Verify OTP",
             onClick = {
                 isLoading = true
                 errorMessage = null
                 repository.getTokenManager().setServerUrl(serverUrl)
 
                 coroutineScope.launch {
-                    val result = repository.login(phone, pin)
-                    isLoading = false
-                    result.onSuccess { userDto ->
-                        val updated = currentUser.copy(
-                            id = userDto.id,
-                            name = userDto.fullNameMr ?: userDto.fullName,
-                            phone = userDto.phone,
-                            subCenter = userDto.subCenter ?: subCenter,
-                            phc = userDto.phc ?: currentUser.phc
-                        )
-                        onLoginSuccess(updated)
-                    }.onFailure { error ->
-                        val isOffline = error.message?.contains("failed to connect", ignoreCase = true) == true ||
-                                        error.message?.contains("connect", ignoreCase = true) == true ||
-                                        error.message?.contains("timeout", ignoreCase = true) == true
-
-                        if (isOffline) {
-                            // Offline frontline mode
+                    if (loginMode == 0) {
+                        // Password Login
+                        val result = repository.login(phone, pin)
+                        isLoading = false
+                        result.onSuccess { userDto ->
                             val updated = currentUser.copy(
+                                id = userDto.id,
+                                name = userDto.fullNameMr ?: userDto.fullName,
+                                phone = userDto.phone,
+                                subCenter = userDto.subCenter ?: subCenter,
+                                phc = userDto.phc ?: currentUser.phc
+                            )
+                            onLoginSuccess(updated)
+                        }.onFailure { error ->
+                            val isOffline = error.message?.contains("connect", ignoreCase = true) == true ||
+                                            error.message?.contains("timeout", ignoreCase = true) == true
+
+                            if (isOffline && !isProd) {
+                                val updated = currentUser.copy(
+                                    name = name.ifBlank { "रुक्मिणी जाधव" },
+                                    phone = phone.ifBlank { "+91 98810 99401" },
+                                    subCenter = subCenter.ifBlank { "खेड शिवापूर उपकेंद्र" }
+                                )
+                                onLoginSuccess(updated)
+                            } else {
+                                errorMessage = "प्रमाणीकरण अयशस्वी: ${error.message ?: "अवैध मोबाईल क्रमांक किंवा पासवर्ड."}"
+                            }
+                        }
+                    } else {
+                        // OTP Verification
+                        val result = repository.verifyOtp(phone, otpValue)
+                        isLoading = false
+                        result.onSuccess {
+                            val updated = currentUser.copy(
+                                phone = phone,
                                 name = name.ifBlank { "रुक्मिणी जाधव" },
-                                phone = phone.ifBlank { "+91 98810 99401" },
                                 subCenter = subCenter.ifBlank { "खेड शिवापूर उपकेंद्र" }
                             )
                             onLoginSuccess(updated)
-                        } else {
-                            errorMessage = "प्रमाणीकरण अयशस्वी: ${error.message ?: "अवैध मोबाईल क्रमांक किंवा पासवर्ड."}"
+                        }.onFailure { err ->
+                            errorMessage = "OTP प्रमाणीकरण अयशस्वी: ${err.message}"
                         }
                     }
                 }
             },
-            enabled = !isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-            } else {
-                Text(
-                    text = "लॉगिन करा • Login",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
+            isLoading = isLoading,
+            enabled = if (loginMode == 0) phone.isNotBlank() && pin.isNotBlank() else phone.isNotBlank() && otpValue.length >= 4
+        )
     }
 }
 
@@ -555,10 +795,25 @@ fun LanguageScreen(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
             Spacer(modifier = Modifier.height(20.dp))
-            Icon(Icons.Default.Translate, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(56.dp))
+            Surface(
+                modifier = Modifier.size(72.dp),
+                shape = CircleShape,
+                color = PrimaryTealContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Translate,
+                        contentDescription = null,
+                        tint = PrimaryTeal,
+                        modifier = Modifier.size(38.dp)
+                    )
+                }
+            }
+
             Text(
                 text = "तुमची प्रादेशिक भाषा निवडा",
                 style = MaterialTheme.typography.headlineSmall,
@@ -571,8 +826,9 @@ fun LanguageScreen(
                 color = SecondaryText
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
+            // Marathi Card
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -586,16 +842,17 @@ fun LanguageScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("मराठी", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = PrimaryText)
-                        Text("महाराष्ट्र राज्य अधिकृत भाषा", style = MaterialTheme.typography.bodySmall, color = SecondaryText)
+                        Text("महाराष्ट्र राज्य अधिकृत भाषा • Marathi (Default)", style = MaterialTheme.typography.bodySmall, color = SecondaryText)
                     }
                     if (selected == "mr") {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = PrimaryTeal)
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(24.dp))
                     }
                 }
             }
 
+            // Hindi Card
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -609,36 +866,26 @@ fun LanguageScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("हिन्दी", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = PrimaryText)
-                        Text("राष्ट्रीय भाषा", style = MaterialTheme.typography.bodySmall, color = SecondaryText)
+                        Text("राष्ट्रीय भाषा • Hindi Regional Dialect", style = MaterialTheme.typography.bodySmall, color = SecondaryText)
                     }
                     if (selected == "hi") {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = PrimaryTeal)
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(24.dp))
                     }
                 }
             }
         }
 
-        Button(
-            onClick = { onLanguageSelected(selected) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
-        ) {
-            Text(
-                text = "भाषा निश्चित करा • Save Language",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        PrimaryButton(
+            text = "भाषा निश्चित करा • Save Language",
+            onClick = { onLanguageSelected(selected) }
+        )
     }
 }
 
 // -------------------------------------------------------------
-// 5. HOME DASHBOARD (Dynamic user name & quick navigation)
+// 5. HOME DASHBOARD (Dynamic greeting, stat cards & queue)
 // -------------------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -647,7 +894,8 @@ fun AshaDashboardScreen(
     onNavigateToRecord: () -> Unit,
     onNavigateToBeneficiaries: () -> Unit,
     onNavigateToHistory: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToBeneficiaryProfile: (String) -> Unit = { _ -> onNavigateToRecord() }
 ) {
     Scaffold(
         topBar = {
@@ -658,7 +906,7 @@ fun AshaDashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Surface(
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(42.dp),
                             shape = CircleShape,
                             color = Color.White,
                             shadowElevation = 2.dp
@@ -666,7 +914,7 @@ fun AshaDashboardScreen(
                             Image(
                                 painter = painterResource(id = R.drawable.app_logo),
                                 contentDescription = "Logo",
-                                modifier = Modifier.padding(2.dp)
+                                modifier = Modifier.padding(4.dp)
                             )
                         }
                         Column {
@@ -728,16 +976,41 @@ fun AshaDashboardScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Stats Row
+            // Online Sync Status Bar
+            SyncStatusIndicator(
+                isOnline = true,
+                pendingSyncCount = 0,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // 3 Stat Cards Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                StatCard(modifier = Modifier.weight(1f), title = "आजच्या भेटी", count = "८", color = PrimaryText)
-                StatCard(modifier = Modifier.weight(1f), title = "पूर्ण", count = "५", color = SecondaryGreen)
-                StatCard(modifier = Modifier.weight(1f), title = "प्रलंबित", count = "३", color = WarningAmber)
+                DashboardStatCard(
+                    title = "आजच्या भेटी",
+                    count = "८",
+                    icon = Icons.Default.Assignment,
+                    accentColor = PrimaryTeal,
+                    modifier = Modifier.weight(1f)
+                )
+                DashboardStatCard(
+                    title = "पूर्ण",
+                    count = "५",
+                    icon = Icons.Default.CheckCircle,
+                    accentColor = SecondaryGreen,
+                    modifier = Modifier.weight(1f)
+                )
+                DashboardStatCard(
+                    title = "प्रलंबित",
+                    count = "३",
+                    icon = Icons.Default.Schedule,
+                    accentColor = WarningAmber,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             // Signature Primary Call-to-Action: Record New Visit
@@ -747,18 +1020,18 @@ fun AshaDashboardScreen(
                     .clickable { onNavigateToRecord() },
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = PrimaryTeal),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Box(
                             modifier = Modifier
@@ -769,7 +1042,7 @@ fun AshaDashboardScreen(
                         ) {
                             Icon(Icons.Default.Mic, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
                         }
-                        Column {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 text = "नवीन भेट नोंदवा",
                                 style = MaterialTheme.typography.titleMedium,
@@ -787,7 +1060,7 @@ fun AshaDashboardScreen(
                 }
             }
 
-            // Beneficiary List Header & Queue
+            // Beneficiary Queue Header & Items
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -800,7 +1073,7 @@ fun AshaDashboardScreen(
                     color = PrimaryText
                 )
                 TextButton(onClick = onNavigateToBeneficiaries) {
-                    Text(text = "सर्व पहा", color = PrimaryTeal, fontWeight = FontWeight.Bold)
+                    Text(text = "सर्व पहा • View All", color = PrimaryTeal, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -813,9 +1086,10 @@ fun AshaDashboardScreen(
                         name = "सुनिता संजय शिंदे",
                         age = 24,
                         village = "खेड शिवापूर",
-                        status = "उच्च जोखीम (High Risk)",
+                        status = "ANC - २८ आठवडे",
                         isHighRisk = true,
-                        onClick = onNavigateToRecord
+                        rchId = "MH-PUN-0912",
+                        onClick = { onNavigateToBeneficiaryProfile("BEN-1") }
                     )
                 }
                 item {
@@ -823,9 +1097,10 @@ fun AshaDashboardScreen(
                         name = "पूजा राहुल पाटील",
                         age = 21,
                         village = "वडगाव बुद्रुक",
-                        status = "ANC - २८ आठवडे",
+                        status = "ANC - १६ आठवडे",
                         isHighRisk = false,
-                        onClick = onNavigateToRecord
+                        rchId = "MH-PUN-1184",
+                        onClick = { onNavigateToBeneficiaryProfile("BEN-2") }
                     )
                 }
                 item {
@@ -835,7 +1110,8 @@ fun AshaDashboardScreen(
                         village = "शिवापूर वस्ती",
                         status = "PNC - ६ दिवस",
                         isHighRisk = true,
-                        onClick = onNavigateToRecord
+                        rchId = "MH-PUN-0742",
+                        onClick = { onNavigateToBeneficiaryProfile("BEN-3") }
                     )
                 }
             }
@@ -857,18 +1133,22 @@ fun BeneficiaryListScreen(
     var isLoading by remember { mutableStateOf(false) }
 
     var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("all") } // all, anc, pnc, high_risk
     var showAddDialog by remember { mutableStateOf(false) }
 
     var newName by remember { mutableStateOf("") }
     var newAge by remember { mutableStateOf("") }
     var newVillage by remember { mutableStateOf("") }
+    var newCategory by remember { mutableStateOf("ANC") }
+    var newGestWeeks by remember { mutableStateOf("12") }
+    var newIsHighRisk by remember { mutableStateOf(false) }
 
     val beneficiaries = remember {
         mutableStateListOf(
-            Beneficiary("BEN-1", "Sunita Shinde", "सुनिता संजय शिंदे", 24, "खेड शिवापूर", "शिवापूर", "ANC", 28, true, "MH-PUN-0912", "+91 98810 99401"),
-            Beneficiary("BEN-2", "Pooja Patil", "पूजा राहुल पाटील", 21, "वडगाव बुद्रुक", "धायरी", "ANC", 16, false, "MH-PUN-1184", "+91 94220 88219"),
-            Beneficiary("BEN-3", "Kavita Gaikwad", "कविता रमेश गायकवाड", 27, "शिवापूर वस्ती", "शिवापूर", "PNC", null, true, "MH-PUN-0742", "+91 98500 12345"),
-            Beneficiary("BEN-4", "Anita Jadhav", "अनिता विठ्ठल जाधव", 23, "खेड शिवापूर", "शिवापूर", "ANC", 32, false, "MH-PUN-0991", "+91 97654 32100")
+            Beneficiary("BEN-1", "Sunita Shinde", "सुनिता संजय शिंदे", 24, "खेड शिवापूर", "शिवापूर", "ANC", 28, true, "MH-PUN-0912", "+91 98810 99401", "१५ ऑगस्ट २०२६", listOf("उच्च रक्तदाब (High BP)", "रक्तक्षय (Hb < 10)")),
+            Beneficiary("BEN-2", "Pooja Patil", "पूजा राहुल पाटील", 21, "वडगाव बुद्रुक", "धायरी", "ANC", 16, false, "MH-PUN-1184", "+91 94220 88219", "२० नोव्हेंबर २०२६", emptyList()),
+            Beneficiary("BEN-3", "Kavita Gaikwad", "कविता रमेश गायकवाड", 27, "शिवापूर वस्ती", "शिवापूर", "PNC", null, true, "MH-PUN-0742", "+91 98500 12345", null, listOf("कमी वजन (Underweight)")),
+            Beneficiary("BEN-4", "Anita Jadhav", "अनिता विठ्ठल जाधव", 23, "खेड शिवापूर", "शिवापूर", "ANC", 32, false, "MH-PUN-0991", "+91 97654 32100", "०५ जुलै २०२६", emptyList())
         )
     }
 
@@ -892,7 +1172,9 @@ fun BeneficiaryListScreen(
                             gestationalWeeks = dto.gestationalWeeks,
                             isHighRisk = dto.isHighRisk,
                             rchId = dto.rchId,
-                            contactPhone = dto.contactPhone
+                            contactPhone = dto.contactPhone,
+                            edd = dto.edd,
+                            highRiskReasons = dto.highRiskReasons ?: emptyList()
                         )
                     )
                 }
@@ -926,12 +1208,20 @@ fun BeneficiaryListScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Search Input Field
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("नाव किंवा गाव शोधा...") },
+                placeholder = { Text("नाव, गाव किंवा RCH ID शोधा...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = SecondaryText) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = SecondaryText)
+                        }
+                    }
+                },
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PrimaryTeal,
@@ -939,19 +1229,96 @@ fun BeneficiaryListScreen(
                 )
             )
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                val filtered = beneficiaries.filter {
-                    it.nameMr.contains(searchQuery) || it.village.contains(searchQuery)
-                }
-                items(filtered) { b ->
-                    BeneficiaryCard(
-                        name = b.nameMr,
-                        age = b.age,
-                        village = b.village,
-                        status = if (b.isHighRisk) "उच्च जोखीम (High Risk)" else "${b.category} - ${b.gestationalWeeks ?: 0} आठवडे",
-                        isHighRisk = b.isHighRisk,
-                        onClick = { onSelectBeneficiary(b.nameMr) }
+            // Category Filter Chips Row
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                item {
+                    FilterChip(
+                        selected = selectedCategory == "all",
+                        onClick = { selectedCategory = "all" },
+                        label = { Text("सर्व (All)") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = PrimaryTealContainer,
+                            selectedLabelColor = PrimaryTealDark
+                        )
                     )
+                }
+                item {
+                    FilterChip(
+                        selected = selectedCategory == "ANC",
+                        onClick = { selectedCategory = "ANC" },
+                        label = { Text("ANC (गर्भवती माता)") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = PrimaryTealContainer,
+                            selectedLabelColor = PrimaryTealDark
+                        )
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = selectedCategory == "PNC",
+                        onClick = { selectedCategory = "PNC" },
+                        label = { Text("PNC (प्रसूतीनंतर)") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = PrimaryTealContainer,
+                            selectedLabelColor = PrimaryTealDark
+                        )
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = selectedCategory == "high_risk",
+                        onClick = { selectedCategory = "high_risk" },
+                        label = { Text("उच्च जोखीम (High Risk)") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = DangerContainer,
+                            selectedLabelColor = DangerRed
+                        )
+                    )
+                }
+            }
+
+            // Filtered Beneficiaries List
+            val filtered = beneficiaries.filter { b ->
+                val matchesQuery = searchQuery.isBlank() ||
+                        b.nameMr.contains(searchQuery, ignoreCase = true) ||
+                        b.name.contains(searchQuery, ignoreCase = true) ||
+                        b.village.contains(searchQuery, ignoreCase = true) ||
+                        b.rchId.contains(searchQuery, ignoreCase = true)
+
+                val matchesCategory = when (selectedCategory) {
+                    "ANC" -> b.category.equals("ANC", ignoreCase = true)
+                    "PNC" -> b.category.equals("PNC", ignoreCase = true)
+                    "high_risk" -> b.isHighRisk
+                    else -> true
+                }
+
+                matchesQuery && matchesCategory
+            }
+
+            if (filtered.isEmpty()) {
+                EmptyState(
+                    title = "कोणतेही लाभार्थी आढळले नाहीत",
+                    subtitle = "शोध शब्द तपासा किंवा वर दिलेल्या बटणावरून नवीन लाभार्थी जोडा.",
+                    icon = Icons.Default.Search,
+                    actionText = if (searchQuery.isNotEmpty()) "शोध रीसेट करा" else null,
+                    onAction = { searchQuery = "" }
+                )
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(filtered) { b ->
+                        BeneficiaryCard(
+                            name = b.nameMr,
+                            age = b.age,
+                            village = b.village,
+                            status = if (b.category.equals("PNC", ignoreCase = true)) "PNC माता" else "ANC - ${b.gestationalWeeks ?: 0} आठवडे",
+                            isHighRisk = b.isHighRisk,
+                            rchId = b.rchId,
+                            onClick = { onSelectBeneficiary(b.id) }
+                        )
+                    }
                 }
             }
         }
@@ -960,24 +1327,53 @@ fun BeneficiaryListScreen(
     if (showAddDialog) {
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
-            title = { Text("नवीन लाभार्थी जोडा", fontWeight = FontWeight.Bold) },
+            title = { Text("नवीन लाभार्थी जोडा (Add Beneficiary)", fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                ) {
                     OutlinedTextField(
                         value = newName,
                         onValueChange = { newName = it },
-                        label = { Text("मातेचे नाव") }
+                        label = { Text("मातेचे नाव (Marathi / English)") },
+                        modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = newAge,
                         onValueChange = { newAge = it },
-                        label = { Text("वय (Age)") }
+                        label = { Text("वय (Age)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = newVillage,
                         onValueChange = { newVillage = it },
-                        label = { Text("गाव / वस्ती") }
+                        label = { Text("गाव / वस्ती (Village)") },
+                        modifier = Modifier.fillMaxWidth()
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = newGestWeeks,
+                            onValueChange = { newGestWeeks = it },
+                            label = { Text("आठवडे (Weeks)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { newIsHighRisk = !newIsHighRisk }
+                                .padding(vertical = 8.dp)
+                        ) {
+                            Checkbox(checked = newIsHighRisk, onCheckedChange = { newIsHighRisk = it })
+                            Text("उच्च जोखीम", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -992,11 +1388,13 @@ fun BeneficiaryListScreen(
                                     age = newAge.toIntOrNull() ?: 22,
                                     village = newVillage.ifBlank { "खेड शिवापूर" },
                                     subCenter = "शिवापूर उपकेंद्र",
-                                    category = "ANC",
-                                    gestationalWeeks = 12,
-                                    isHighRisk = false,
+                                    category = newCategory,
+                                    gestationalWeeks = newGestWeeks.toIntOrNull() ?: 12,
+                                    isHighRisk = newIsHighRisk,
                                     rchId = "MH-NEW-${System.currentTimeMillis() % 10000}",
-                                    contactPhone = "+91 99999 00000"
+                                    contactPhone = "+91 99999 00000",
+                                    edd = "२० नोव्हेंबर २०२६",
+                                    highRiskReasons = if (newIsHighRisk) listOf("निरीक्षण आवश्यक") else emptyList()
                                 )
                             )
                         }
@@ -1013,6 +1411,326 @@ fun BeneficiaryListScreen(
                 }
             }
         )
+    }
+}
+
+// -------------------------------------------------------------
+// 6B. BENEFICIARY PROFILE SCREEN (Full Maternal Profile)
+// -------------------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BeneficiaryProfileScreen(
+    beneficiaryId: String,
+    onNavigateToRecord: (String) -> Unit,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val repository = remember { AppRepository(context) }
+
+    val defaultBeneficiary = Beneficiary(
+        id = beneficiaryId.ifBlank { "BEN-1" },
+        name = "Sunita Sanjay Shinde",
+        nameMr = "सुनिता संजय शिंदे",
+        age = 24,
+        village = "खेड शिवापूर",
+        subCenter = "खेड शिवापूर उपकेंद्र",
+        category = "ANC",
+        gestationalWeeks = 28,
+        isHighRisk = true,
+        rchId = "MH-PUN-0912",
+        contactPhone = "+91 98810 99401",
+        edd = "१५ ऑगस्ट २०२६",
+        highRiskReasons = listOf("उच्च रक्तदाब (High BP)", "रक्तक्षय (Hb < 10 gm%)")
+    )
+
+    var beneficiary by remember { mutableStateOf(defaultBeneficiary) }
+
+    LaunchedEffect(beneficiaryId) {
+        val result = repository.fetchBeneficiaries()
+        result.onSuccess { dtoList ->
+            val found = dtoList.find { it.id == beneficiaryId }
+            if (found != null) {
+                beneficiary = Beneficiary(
+                    id = found.id,
+                    name = found.name,
+                    nameMr = found.nameMr,
+                    age = found.age,
+                    village = found.village,
+                    subCenter = found.subCenter,
+                    category = found.category,
+                    gestationalWeeks = found.gestationalWeeks,
+                    isHighRisk = found.isHighRisk,
+                    rchId = found.rchId,
+                    contactPhone = found.contactPhone,
+                    edd = found.edd,
+                    highRiskReasons = found.highRiskReasons ?: emptyList()
+                )
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(beneficiary.nameMr, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("RCH: ${beneficiary.rchId}", style = MaterialTheme.typography.labelSmall, color = SecondaryText)
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MainBackground)
+            )
+        },
+        bottomBar = {
+            Surface(
+                color = Color.White,
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(modifier = Modifier.padding(16.dp)) {
+                    PrimaryButton(
+                        text = "या मातेची भेट नोंदवा • Record Visit",
+                        leadingIcon = Icons.Default.Mic,
+                        onClick = { onNavigateToRecord(beneficiary.id) }
+                    )
+                }
+            }
+        },
+        containerColor = MainBackground
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Hero Profile Header Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (beneficiary.isHighRisk) DangerRed.copy(alpha = 0.4f) else BorderColor
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(if (beneficiary.isHighRisk) DangerContainer else PrimaryTealContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = beneficiary.name.take(2).uppercase(),
+                            fontWeight = FontWeight.Bold,
+                            color = if (beneficiary.isHighRisk) DangerRed else PrimaryTealDark,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = beneficiary.nameMr,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryText
+                        )
+                        Text(
+                            text = beneficiary.name,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SecondaryText
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            StatusChip(
+                                status = beneficiary.category,
+                                label = "${beneficiary.category} माता"
+                            )
+                            if (beneficiary.isHighRisk) {
+                                RiskBadge(isHighRisk = true)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Maternal Demographics Details
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "वैयक्तिक माहिती (Personal Details)",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryTeal
+                    )
+                    HorizontalDivider(color = BorderColor)
+
+                    DetailRow(label = "वय (Age)", value = "${beneficiary.age} वर्षे")
+                    DetailRow(label = "मोबाईल (Phone)", value = beneficiary.contactPhone)
+                    DetailRow(label = "गाव / वस्ती (Village)", value = beneficiary.village)
+                    DetailRow(label = "उपकेंद्र (Sub-Center)", value = beneficiary.subCenter)
+                    DetailRow(label = "RCH आयडी (RCH ID)", value = beneficiary.rchId)
+                }
+            }
+
+            // Obstetric & Clinical Details Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "वैद्यकीय व प्रसूती माहिती (Clinical & Obstetric)",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryTeal
+                    )
+                    HorizontalDivider(color = BorderColor)
+
+                    DetailRow(
+                        label = "गर्भावस्थेचे आठवडे (Gestational Weeks)",
+                        value = "${beneficiary.gestationalWeeks ?: 28} आठवडे"
+                    )
+                    DetailRow(
+                        label = "संभाव्य प्रसूती तारीख (EDD)",
+                        value = beneficiary.edd ?: "१५ ऑगस्ट २०२६"
+                    )
+                    DetailRow(
+                        label = "प्रसूती क्रम (Parity)",
+                        value = "पहिली गर्भधारणा (Gravida 1)"
+                    )
+
+                    if (beneficiary.isHighRisk) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "जोखीम घटक (High Risk Factors):",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = DangerRed
+                        )
+                        beneficiary.highRiskReasons.forEach { reason ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(DangerRed)
+                                )
+                                Text(
+                                    text = reason,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = DangerRed,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Recent Visits Timeline Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "मागील भेटींचा इतिहास (Visit Timeline)",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryTeal
+                    )
+                    HorizontalDivider(color = BorderColor)
+
+                    RecentVisitItem(
+                        date = "१४ जून २०२६",
+                        details = "बीपी: १३८/८८ mmHg • हिमोग्लोबिन: १०.२ g/dL • वजन: ५४.५ kg",
+                        status = "ANM मंजूर (Approved)"
+                    )
+
+                    RecentVisitItem(
+                        date = "२८ मे २०२६",
+                        details = "बीपी: १३०/८४ mmHg • हिमोग्लोबिन: १०.५ g/dL • वजन: ५३.० kg",
+                        status = "ANM मंजूर (Approved)"
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = SecondaryText)
+        Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = PrimaryText)
+    }
+}
+
+@Composable
+private fun RecentVisitItem(date: String, details: String, status: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MainBackground)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = date, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = PrimaryText)
+            Text(text = status, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = SecondaryGreen)
+        }
+        Text(text = details, style = MaterialTheme.typography.bodySmall, color = SecondaryText)
     }
 }
 
@@ -1545,7 +2263,7 @@ fun ValidationScreen(
                 coroutineScope.launch {
                     val createReq = CreateVisitRequest(
                         beneficiaryId = "BEN-MH-PUN-0841",
-                        ashaId = repository.getTokenManager().getUserId(),
+                        ashaId = repository.getTokenManager().getUserId() ?: "USR-ASHA-001",
                         language = "mr-IN",
                         transcript = localDraft.transcript,
                         bpSystolic = localDraft.bpSystolic,
@@ -1862,95 +2580,8 @@ fun SettingsScreen(
 }
 
 // -------------------------------------------------------------
-// HELPER COMPONENTS
+// HELPER OBSERVATION COMPONENTS
 // -------------------------------------------------------------
-@Composable
-fun StatCard(
-    modifier: Modifier = Modifier,
-    title: String,
-    count: String,
-    color: Color
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBackground),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(text = title, style = MaterialTheme.typography.labelSmall, color = SecondaryText)
-            Text(text = count, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = color)
-        }
-    }
-}
-
-@Composable
-fun BeneficiaryCard(
-    name: String,
-    age: Int,
-    village: String,
-    status: String,
-    isHighRisk: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBackground),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Surface(
-                    modifier = Modifier.size(46.dp),
-                    shape = CircleShape,
-                    color = if (isHighRisk) DangerContainer else PrimaryTealContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "${age}y",
-                            fontWeight = FontWeight.Bold,
-                            color = if (isHighRisk) DangerRed else PrimaryTealDark,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                }
-                Column {
-                    Text(text = name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = PrimaryText)
-                    Text(text = village, style = MaterialTheme.typography.bodySmall, color = SecondaryText)
-                }
-            }
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (isHighRisk) DangerContainer else SuccessContainer
-            ) {
-                Text(
-                    text = status,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isHighRisk) DangerRed else SuccessGreen
-                )
-            }
-        }
-    }
-}
-
 @Composable
 fun ObservationRow(label: String, value: String, isDanger: Boolean) {
     Row(

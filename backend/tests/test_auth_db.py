@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from backend.app.main import app
 from backend.app.db.session import SessionLocal
-from backend.app.db.init_db import init_db
+from backend.app.db.init_db import init_db, SEED_PASSWORDS
 from backend.app.models.user import User, UserRole, OtpVerification, normalize_phone
 from backend.app.security.password import verify_password
 
@@ -19,17 +19,17 @@ def test_user_seed_accounts_exist():
         admin = db.query(User).filter(User.phone == "+919999900001").first()
         assert admin is not None
         assert admin.role == UserRole.ADMIN
-        assert verify_password("Admin@123", admin.password_hash)
+        assert verify_password(SEED_PASSWORDS["admin"], admin.password_hash)
 
         anm = db.query(User).filter(User.phone == "+919422018834").first()
         assert anm is not None
         assert anm.role == UserRole.ANM
-        assert verify_password("Anm@12345", anm.password_hash)
+        assert verify_password(SEED_PASSWORDS["anm"], anm.password_hash)
 
         asha = db.query(User).filter(User.phone == "+919881099401").first()
         assert asha is not None
         assert asha.role == UserRole.ASHA
-        assert verify_password("Asha@1234", asha.password_hash)
+        assert verify_password(SEED_PASSWORDS["asha1"], asha.password_hash)
     finally:
         db.close()
 
@@ -37,7 +37,7 @@ def test_login_success_and_jwt_issuance():
     """Test successful login with phone and password returning JWT access and refresh tokens."""
     res = client.post("/api/v1/auth/login", json={
         "phone": "+91 98810 99401",
-        "password": "Asha@1234"
+        "password": SEED_PASSWORDS["asha1"]
     })
     assert res.status_code == 200
     data = res.json()
@@ -60,7 +60,7 @@ def test_get_current_user_profile():
     """Test authenticated profile retrieval using Bearer token."""
     login_res = client.post("/api/v1/auth/login", json={
         "phone": "+91 98810 99401",
-        "password": "Asha@1234"
+        "password": SEED_PASSWORDS["asha1"]
     })
     token = login_res.json()["access_token"]
 
@@ -82,7 +82,7 @@ def test_token_refresh_rotation():
     """Test that refresh token yields a new pair and revokes previous token."""
     login_res = client.post("/api/v1/auth/login", json={
         "phone": "+91 94220 18834",
-        "password": "Anm@12345"
+        "password": SEED_PASSWORDS["anm"]
     })
     refresh_token = login_res.json()["refresh_token"]
 
@@ -105,7 +105,7 @@ def test_token_revocation_on_logout():
     """Test logout revokes the refresh token."""
     login_res = client.post("/api/v1/auth/login", json={
         "phone": "+91 94220 18834",
-        "password": "Anm@12345"
+        "password": SEED_PASSWORDS["anm"]
     })
     refresh_token = login_res.json()["refresh_token"]
     access_token = login_res.json()["access_token"]
@@ -128,7 +128,7 @@ def test_role_based_access_control():
     # Login as ASHA
     asha_login = client.post("/api/v1/auth/login", json={
         "phone": "+91 98810 99401",
-        "password": "Asha@1234"
+        "password": SEED_PASSWORDS["asha1"]
     })
     asha_token = asha_login.json()["access_token"]
 
@@ -143,7 +143,7 @@ def test_role_based_access_control():
     # Login as ADMIN
     admin_login = client.post("/api/v1/auth/login", json={
         "phone": "+91 99999 00001",
-        "password": "Admin@123"
+        "password": SEED_PASSWORDS["admin"]
     })
     admin_token = admin_login.json()["access_token"]
 

@@ -16,7 +16,9 @@ export function useRealtimeSync(
     let isMounted = true;
 
     function connect() {
-      const wsUrl = `ws://localhost:8000/ws/anm/${encodeURIComponent(circleId)}`;
+      const token = localStorage.getItem('access_token');
+      const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+      const wsUrl = `ws://localhost:8000/ws/anm/${encodeURIComponent(circleId)}${tokenParam}`;
       try {
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;

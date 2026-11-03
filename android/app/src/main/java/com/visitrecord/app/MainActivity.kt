@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.visitrecord.app.data.model.AshaUserProfile
 import com.visitrecord.app.ui.navigation.Screen
 import com.visitrecord.app.ui.screens.*
@@ -77,12 +79,32 @@ fun AppNavigation() {
                 onNavigateToRecord = { navController.navigate(Screen.VoiceRecording.route) },
                 onNavigateToBeneficiaries = { navController.navigate(Screen.BeneficiaryList.route) },
                 onNavigateToHistory = { navController.navigate(Screen.VisitHistory.route) },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                onNavigateToBeneficiaryProfile = { beneficiaryId ->
+                    navController.navigate(Screen.BeneficiaryProfile.createRoute(beneficiaryId))
+                }
             )
         }
         composable(Screen.BeneficiaryList.route) {
             BeneficiaryListScreen(
-                onSelectBeneficiary = { name ->
+                onSelectBeneficiary = { beneficiaryId ->
+                    navController.navigate(Screen.BeneficiaryProfile.createRoute(beneficiaryId))
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = Screen.BeneficiaryProfile.route,
+            arguments = listOf(
+                navArgument("beneficiaryId") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val beneficiaryId = backStackEntry.arguments?.getString("beneficiaryId") ?: ""
+            BeneficiaryProfileScreen(
+                beneficiaryId = beneficiaryId,
+                onNavigateToRecord = { _ ->
                     navController.navigate(Screen.VoiceRecording.route)
                 },
                 onBack = { navController.popBackStack() }

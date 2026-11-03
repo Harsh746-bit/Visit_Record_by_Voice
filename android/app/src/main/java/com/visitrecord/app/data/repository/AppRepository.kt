@@ -31,6 +31,34 @@ class AppRepository(private val context: Context) {
         }
     }
 
+    suspend fun sendOtp(phone: String): Result<OtpSendResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.sendOtp(OtpSendRequest(phone = phone))
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "OTP request failed (${response.code()})"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun verifyOtp(phone: String, otp: String): Result<OtpVerifyResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.verifyOtp(OtpVerifyRequest(phone = phone, otp = otp))
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "OTP verification failed (${response.code()})"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun fetchBeneficiaries(query: String? = null): Result<List<BeneficiaryDto>> = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getBeneficiaries(query)

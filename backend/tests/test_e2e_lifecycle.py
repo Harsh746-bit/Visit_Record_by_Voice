@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from backend.app.main import app
-from backend.app.db.init_db import init_db
+from backend.app.db.init_db import init_db, SEED_PASSWORDS
 from backend.app.db.session import SessionLocal
 from backend.app.models.clinical import VisitRecord, ReviewAction
 from backend.app.models.system import AuditLog, Notification
@@ -39,7 +39,7 @@ def test_complete_20_step_e2e_clinical_workflow():
     # -------------------------------------------------------------
     asha_login = client.post("/api/v1/auth/login", json={
         "phone": "+91 98810 99401",
-        "password": "Asha@1234"
+        "password": SEED_PASSWORDS["asha1"]
     })
     assert asha_login.status_code == 200
     asha_data = asha_login.json()
@@ -52,7 +52,7 @@ def test_complete_20_step_e2e_clinical_workflow():
     # -------------------------------------------------------------
     anm_login = client.post("/api/v1/auth/login", json={
         "phone": "+91 94220 18834",
-        "password": "Anm@12345"
+        "password": SEED_PASSWORDS["anm"]
     })
     assert anm_login.status_code == 200
     anm_token = anm_login.json()["access_token"]
@@ -82,7 +82,7 @@ def test_complete_20_step_e2e_clinical_workflow():
     # -------------------------------------------------------------
     admin_login = client.post("/api/v1/auth/login", json={
         "phone": "+91 99999 00001",
-        "password": "Admin@123"
+        "password": SEED_PASSWORDS["admin"]
     })
     admin_token = admin_login.json()["access_token"]
     admin_res = client.patch(

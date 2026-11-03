@@ -40,6 +40,26 @@ data class RefreshResponse(
     @SerializedName("expires_at") val expiresAt: String
 )
 
+data class OtpSendRequest(
+    @SerializedName("phone") val phone: String
+)
+
+data class OtpSendResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String,
+    @SerializedName("test_mode_otp") val testModeOtp: String? = null
+)
+
+data class OtpVerifyRequest(
+    @SerializedName("phone") val phone: String,
+    @SerializedName("otp") val otp: String
+)
+
+data class OtpVerifyResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String
+)
+
 // --- BENEFICIARIES ---
 
 data class BeneficiaryDto(

@@ -8,9 +8,10 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onContinueAsGuest }) => {
+  const isProduction = import.meta.env.VITE_APP_MODE === 'production' || import.meta.env.PROD;
   const { login, isLoading, error, clearError } = useAuth();
-  const [phone, setPhone] = useState('+91 94220 18834');
-  const [password, setPassword] = useState('Anm@12345');
+  const [phone, setPhone] = useState(isProduction ? '' : '+91 94220 18834');
+  const [password, setPassword] = useState(isProduction ? '' : 'Anm#Pr0d_42!Deshmukh');
   const [selectedRole, setSelectedRole] = useState<'ANM' | 'ADMIN'>('ANM');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,14 +24,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onContinueAsGue
   };
 
   const handleSelectDemoProfile = (role: 'ANM' | 'ADMIN') => {
+    if (isProduction) return;
     clearError();
     setSelectedRole(role);
     if (role === 'ANM') {
       setPhone('+91 94220 18834');
-      setPassword('Anm@12345');
+      setPassword('Anm#Pr0d_42!Deshmukh');
     } else {
       setPhone('+91 99999 00001');
-      setPassword('Admin@123');
+      setPassword('Adm#Secure_99!Joshi');
     }
   };
 
@@ -54,47 +56,55 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onContinueAsGue
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 shadow-xl shadow-slate-200/50 rounded-2xl border border-slate-200/80 sm:px-10">
-          {/* Quick Demo Credentials Switcher */}
-          <div className="mb-6">
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-              झटपट डेमो खाती (Quick Select Demo):
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleSelectDemoProfile('ANM')}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  selectedRole === 'ANM'
-                    ? 'border-[#087F8C] bg-[#087F8C]/5 ring-1 ring-[#087F8C]'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900">सुजाता देशमुख</span>
-                  {selectedRole === 'ANM' && <CheckCircle2 className="w-4 h-4 text-[#087F8C]" />}
-                </div>
-                <div className="text-[11px] text-slate-500">ANM Supervisor</div>
-                <div className="text-[10px] text-[#087F8C] font-mono mt-0.5">+91 94220 18834</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelectDemoProfile('ADMIN')}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  selectedRole === 'ADMIN'
-                    ? 'border-[#087F8C] bg-[#087F8C]/5 ring-1 ring-[#087F8C]'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900">डॉ. आनंद जोशी</span>
-                  {selectedRole === 'ADMIN' && <CheckCircle2 className="w-4 h-4 text-[#087F8C]" />}
-                </div>
-                <div className="text-[11px] text-slate-500">District Admin</div>
-                <div className="text-[10px] text-[#087F8C] font-mono mt-0.5">+91 99999 00001</div>
-              </button>
+          {/* Production vs Dev Indicator */}
+          {isProduction ? (
+            <div className="mb-6 p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+              <span className="text-xs font-semibold text-slate-700">🔒 उत्पादन मोड • Production Mode</span>
+              <p className="text-[11px] text-slate-500 mt-0.5">अधिकृत आरोग्य खात्याचे तपशील प्रविष्ट करा (Real credentials required)</p>
             </div>
-          </div>
+          ) : (
+            /* Quick Demo Credentials Switcher */
+            <div className="mb-6">
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                झटपट डेमो खाती (Development Mode Only):
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSelectDemoProfile('ANM')}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    selectedRole === 'ANM'
+                      ? 'border-[#087F8C] bg-[#087F8C]/5 ring-1 ring-[#087F8C]'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">सुजाता देशमुख</span>
+                    {selectedRole === 'ANM' && <CheckCircle2 className="w-4 h-4 text-[#087F8C]" />}
+                  </div>
+                  <div className="text-[11px] text-slate-500">ANM Supervisor</div>
+                  <div className="text-[10px] text-[#087F8C] font-mono mt-0.5">+91 94220 18834</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSelectDemoProfile('ADMIN')}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    selectedRole === 'ADMIN'
+                      ? 'border-[#087F8C] bg-[#087F8C]/5 ring-1 ring-[#087F8C]'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">डॉ. आनंद जोशी</span>
+                    {selectedRole === 'ADMIN' && <CheckCircle2 className="w-4 h-4 text-[#087F8C]" />}
+                  </div>
+                  <div className="text-[11px] text-slate-500">District Admin</div>
+                  <div className="text-[10px] text-[#087F8C] font-mono mt-0.5">+91 99999 00001</div>
+                </button>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2.5">
