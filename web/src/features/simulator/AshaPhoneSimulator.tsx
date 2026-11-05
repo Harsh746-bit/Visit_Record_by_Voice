@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Mic, 
   Square, 
@@ -23,11 +23,15 @@ import {
   Battery,
   ChevronRight,
   Send,
-  Info
+  Info,
+  Loader2,
+  Play,
+  Pause
 } from 'lucide-react';
-import { Beneficiary, StructuredVisit } from '../../types';
+import { Beneficiary, StructuredVisit, EvidenceSpan } from '../../types';
 import { StatusBadge } from '../../components/common/Badge';
 import { mockDataService } from '../../services/mockDataService';
+import { apiClient } from '../../services/apiClient';
 import { translations } from '../../i18n/translations';
 import appLogo from '../../assets/app_logo.png';
 
@@ -61,17 +65,32 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
   
   const [selectedBeneficiary, setSelectedBeneficiary] = useState<Beneficiary>(beneficiaries[0]);
   
-  // Voice recording state
+  // Real voice recording state
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [audioWaveIndex, setAudioWaveIndex] = useState(0);
+  const [liveVolume, setLiveVolume] = useState<number>(10);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  const [isPlayingRecordedAudio, setIsPlayingRecordedAudio] = useState(false);
   const [simulatedTranscript, setSimulatedTranscript] = useState(records[0]?.transcript || '');
+  
+  // Audio recording refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const recordedAudioPlayerRef = useRef<HTMLAudioElement | null>(null);
   
   // Simulated editable vitals
   const [editedBpSystolic, setEditedBpSystolic] = useState<number>(140);
   const [editedBpDiastolic, setEditedBpDiastolic] = useState<number>(95);
   const [editedHb, setEditedHb] = useState<number>(10.2);
   const [editedWeight, setEditedWeight] = useState<number>(54.0);
+  const [editedHeadache, setEditedHeadache] = useState<boolean>(true);
+  const [editedEdema, setEditedEdema] = useState<boolean>(true);
+  const [editedEvidenceSpans, setEditedEvidenceSpans] = useState<EvidenceSpan[]>(records[0]?.evidenceSpans || []);
 
   const handleLanguageChange = (newLang: 'mr' | 'hi') => {
     setLang(newLang);
@@ -81,22 +100,25 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
       setEditedBpDiastolic(95);
       setEditedHb(10.2);
       setEditedWeight(54.0);
+      setEditedHeadache(true);
+      setEditedEdema(true);
     } else {
       setSimulatedTranscript(records[1]?.transcript || '');
       setEditedBpSystolic(118);
       setEditedBpDiastolic(76);
       setEditedHb(11.5);
       setEditedWeight(49.0);
+      setEditedHeadache(false);
+      setEditedEdema(false);
     }
   };
 
-  // Recording timer simulation
+  // Recording timer effect
   useEffect(() => {
     let interval: any = null;
     if (isRecording) {
       interval = setInterval(() => {
         setRecordingSeconds((prev) => prev + 1);
-        setAudioWaveIndex((prev) => (prev + 1) % 10);
       }, 1000);
     } else {
       clearInterval(interval);
@@ -104,14 +126,171 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
     return () => clearInterval(interval);
   }, [isRecording]);
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    setRecordingSeconds(0);
+  // Cleanup media stream and audio context on unmount
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+      }
+      if (recordedAudioPlayerRef.current) {
+        recordedAudioPlayerRef.current.pause();
+      }
+    };
+  }, []);
+
+  // START REAL MICROPHONE RECORDING
+  const handleStartRecording = async () => {
+    setTranscriptionError(null);
+    audioChunksRef.current = [];
+    try {
+      // 1. Request microphone access from user
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+
+      // 2. Setup Web Audio API analyser to drive real-time waveform bars
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const audioCtx = new AudioContextClass();
+        const sourceNode = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 64;
+        sourceNode.connect(analyser);
+        audioContextRef.current = audioCtx;
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const updateWaveform = () => {
+          if (analyser) {
+            analyser.getByteFrequencyData(dataArray);
+            let total = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+              total += dataArray[i];
+            }
+            const avg = total / dataArray.length;
+            setLiveVolume(avg);
+          }
+          animFrameRef.current = requestAnimationFrame(updateWaveform);
+        };
+        updateWaveform();
+      } catch (audioErr) {
+        console.warn("Web Audio API analyser not supported, visualizer will use fallback:", audioErr);
+      }
+
+      // 3. Setup MediaRecorder with best supported MIME type
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+        mimeType = 'audio/wav';
+      }
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        const localUrl = URL.createObjectURL(audioBlob);
+        setRecordedAudioUrl(localUrl);
+
+        // Send recorded audio to FastAPI Sarvam Saaras endpoint
+        setIsTranscribing(true);
+        setCurrentScreen('transcription_review');
+
+        try {
+          const langCode = lang === 'mr' ? 'mr-IN' : 'hi-IN';
+          const res = await apiClient.transcribeAudio(audioBlob, langCode);
+          if (res && res.transcript) {
+            setSimulatedTranscript(res.transcript);
+
+            // Dynamically extract clinical vitals and evidence spans from what was spoken
+            try {
+              const extRes = await apiClient.extractRecord(res.transcript, langCode, selectedBeneficiary.id);
+              if (extRes && extRes.vitals_extracted) {
+                const vit = extRes.vitals_extracted;
+                if (vit.bp_systolic) setEditedBpSystolic(vit.bp_systolic);
+                if (vit.bp_diastolic) setEditedBpDiastolic(vit.bp_diastolic);
+                if (vit.weight_kg) setEditedWeight(vit.weight_kg);
+                if (vit.hemoglobin_g_dl) setEditedHb(vit.hemoglobin_g_dl);
+                if (vit.headache !== undefined) setEditedHeadache(vit.headache);
+                if (vit.pedal_edema !== undefined) setEditedEdema(vit.pedal_edema);
+              }
+              if (extRes && extRes.structured_record && extRes.structured_record.evidence_spans) {
+                const spans: EvidenceSpan[] = extRes.structured_record.evidence_spans.map((s: any) => ({
+                  fieldName: s.field_name,
+                  extractedValue: s.extracted_value,
+                  startChar: s.start_char,
+                  endChar: s.end_char,
+                  sourceText: s.source_text,
+                  confidence: s.confidence || 0.98,
+                  status: s.status || 'extracted'
+                }));
+                setEditedEvidenceSpans(spans);
+              }
+            } catch (extErr) {
+              console.warn("Extraction parsing error:", extErr);
+            }
+          }
+        } catch (transErr: any) {
+          console.error("Sarvam STT failed:", transErr);
+          setTranscriptionError(transErr.message || "आवाज भाषांतर अयशस्वी झाले.");
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+
+      recorder.start(200); // collect chunk every 200ms
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordingSeconds(0);
+    } catch (err: any) {
+      console.error("Microphone access error:", err);
+      alert(`मायक्रोफोन परवानगी आवश्यक आहे (Microphone Access Required): ${err.message || err}. कृपया ब्राउझरमध्ये मायक्रोफोनला परवानगी द्या.`);
+      setIsRecording(false);
+    }
   };
 
+  // STOP RECORDING
   const handleStopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach((t) => t.stop());
+    }
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+    }
     setIsRecording(false);
-    setCurrentScreen('transcription_review');
+  };
+
+  // PLAY REPLAY OF RECORDED AUDIO
+  const handleToggleRecordedPlayback = () => {
+    if (!recordedAudioUrl) return;
+
+    if (isPlayingRecordedAudio && recordedAudioPlayerRef.current) {
+      recordedAudioPlayerRef.current.pause();
+      setIsPlayingRecordedAudio(false);
+      return;
+    }
+
+    const audio = new Audio(recordedAudioUrl);
+    recordedAudioPlayerRef.current = audio;
+    audio.onplay = () => setIsPlayingRecordedAudio(true);
+    audio.onpause = () => setIsPlayingRecordedAudio(false);
+    audio.onended = () => setIsPlayingRecordedAudio(false);
+    audio.play().catch((err) => console.warn("Audio playback error:", err));
   };
 
   const formatTimer = (sec: number) => {
@@ -142,7 +321,7 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
           <option value="home">5. ASHA Home Dashboard</option>
           <option value="beneficiary_list">6. Beneficiary Registry</option>
           <option value="beneficiary_profile">7. Beneficiary Profile</option>
-          <option value="recording">8. Voice Recording</option>
+          <option value="recording">8. Voice Recording (Live Mic)</option>
           <option value="transcription_review">9. Transcription Review</option>
           <option value="structured_record">10. AI Structured Form</option>
           <option value="evidence_review">11. Signature Evidence Review</option>
@@ -223,7 +402,7 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                     १
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm text-[#172B3A] font-devanagari">सहज बोला</h3>
+                    <h3 className="font-bold text-sm text-[#172B3A] font-devanagari">सहज बोला (Live Voice)</h3>
                     <p className="text-xs text-slate-600 font-devanagari mt-0.5">
                       मराठी किंवा हिंदीत लाभार्थीच्या घरी झालेल्या भेटीचे वर्णन करा.
                     </p>
@@ -235,7 +414,7 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                     २
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm text-[#172B3A] font-devanagari">AI नोंद तयार करतो</h3>
+                    <h3 className="font-bold text-sm text-[#172B3A] font-devanagari">Sarvam AI नोंद तयार करतो</h3>
                     <p className="text-xs text-slate-600 font-devanagari mt-0.5">
                       रक्तदाब, वजन, गोळ्या आणि तक्रारी आपोआप नोंदवल्या जातात.
                     </p>
@@ -344,7 +523,7 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                 >
                   <div>
                     <h3 className="text-lg font-bold text-[#172B3A] font-devanagari">मराठी</h3>
-                    <p className="text-xs text-slate-500 font-devanagari">महाराष्ट्र राज्य अधिकृत भाषा</p>
+                    <p className="text-xs text-slate-500 font-devanagari">महाराष्ट्र राज्य अधिकृत भाषा (Sarvam Saaras)</p>
                   </div>
                   {lang === 'mr' && <CheckCircle className="w-6 h-6 text-[#087F8C]" />}
                 </div>
@@ -357,7 +536,7 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                 >
                   <div>
                     <h3 className="text-lg font-bold text-[#172B3A] font-devanagari">हिन्दी</h3>
-                    <p className="text-xs text-slate-500 font-devanagari">राष्ट्रीय भाषा</p>
+                    <p className="text-xs text-slate-500 font-devanagari">राष्ट्रीय भाषा (Sarvam Saaras)</p>
                   </div>
                   {lang === 'hi' && <CheckCircle className="w-6 h-6 text-[#087F8C]" />}
                 </div>
@@ -424,7 +603,7 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                     </div>
                     <div className="text-left">
                       <div className="text-base font-bold font-devanagari">{t.recordNewVisit}</div>
-                      <p className="text-xs text-teal-100 font-devanagari">मराठी किंवा हिंदीत बोला</p>
+                      <p className="text-xs text-teal-100 font-devanagari">थेट आवाजात बोला (मराठी/हिंदी)</p>
                     </div>
                   </div>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -617,57 +796,70 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
             </div>
           )}
 
-          {/* SCREEN 8: VOICE RECORDING SCREEN */}
+          {/* SCREEN 8: VOICE RECORDING SCREEN (REAL MICROPHONE & WAVEFORM) */}
           {currentScreen === 'recording' && (
             <div className="flex-1 flex flex-col justify-between p-6 bg-gradient-to-b from-teal-900 to-[#172B3A] text-white text-center">
               <div className="flex items-center justify-between text-xs">
-                <button onClick={() => setCurrentScreen('home')} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 cursor-pointer">
+                <button 
+                  onClick={() => {
+                    handleStopRecording();
+                    setCurrentScreen('home');
+                  }} 
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 cursor-pointer"
+                >
                   <ArrowLeft className="w-4 h-4 text-white" />
                 </button>
                 <div className="px-3 py-1 rounded-full bg-white/10 text-teal-200 font-semibold font-devanagari">
-                  भाषा: {lang === 'mr' ? 'मराठी' : 'हिन्दी'}
+                  भाषा: {lang === 'mr' ? 'मराठी' : 'हिन्दी'} (Sarvam Saaras v3)
                 </div>
-                <button onClick={() => handleLanguageChange(lang === 'mr' ? 'hi' : 'mr')} className="text-xs text-teal-300 font-medium underline cursor-pointer">
+                <button 
+                  disabled={isRecording}
+                  onClick={() => handleLanguageChange(lang === 'mr' ? 'hi' : 'mr')} 
+                  className="text-xs text-teal-300 font-medium underline cursor-pointer disabled:opacity-50"
+                >
                   बदला
                 </button>
               </div>
 
-              <div className="space-y-6 my-auto">
+              <div className="space-y-5 my-auto">
                 <div className="space-y-1">
-                  <span className="text-xs text-teal-300 uppercase tracking-widest font-bold">
-                    {isRecording ? 'नोंद सुरू आहे • Recording' : 'तयार आहे • Ready to Record'}
-                  </span>
-                  <div className="text-4xl font-mono font-bold tracking-wider">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-xs font-bold tracking-wider uppercase text-teal-300">
+                    <span className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-400 animate-ping' : 'bg-emerald-400'}`} />
+                    <span>{isRecording ? 'मायक्रोफोन चालू आहे • Live Recording' : 'तयार आहे • Ready to Record'}</span>
+                  </div>
+                  <div className="text-4xl font-mono font-bold tracking-wider mt-2">
                     {formatTimer(recordingSeconds)}
                   </div>
                 </div>
 
-                {/* Animated Waveform */}
-                <div className="h-16 flex items-center justify-center gap-1.5 px-4">
-                  {[25, 45, 75, 30, 95, 60, 85, 40, 70, 30, 90, 50, 80, 35, 65].map((h, i) => (
-                    <div
-                      key={i}
-                      className={`w-1.5 rounded-full transition-all duration-300 ${
-                        isRecording ? 'bg-teal-400' : 'bg-white/20'
-                      }`}
-                      style={{
-                        height: isRecording 
-                          ? `${Math.max(12, ((h + audioWaveIndex * 8) % 100) * 0.6)}px`
-                          : '12px'
-                      }}
-                    ></div>
-                  ))}
+                {/* Real Voice Volume-Reactive Waveform */}
+                <div className="h-20 flex items-center justify-center gap-1.5 px-4">
+                  {[20, 45, 70, 30, 90, 60, 85, 40, 75, 35, 95, 50, 80, 30, 65].map((baseH, i) => {
+                    // Height reacts in real time to actual microphone volume
+                    const dynamicHeight = isRecording 
+                      ? Math.min(64, Math.max(8, (baseH * 0.3) + (liveVolume * 0.8) + (Math.sin(recordingSeconds * 4 + i) * 12)))
+                      : 10;
+                    return (
+                      <div
+                        key={i}
+                        className={`w-1.5 rounded-full transition-all duration-100 ${
+                          isRecording ? 'bg-emerald-400' : 'bg-white/20'
+                        }`}
+                        style={{ height: `${dynamicHeight}px` }}
+                      />
+                    );
+                  })}
                 </div>
 
                 {/* Big Pulse Mic Button */}
                 <div className="relative inline-block">
                   {isRecording && (
-                    <div className="absolute inset-0 rounded-full bg-teal-400/30 animate-ping"></div>
+                    <div className="absolute inset-0 rounded-full bg-rose-500/30 animate-ping"></div>
                   )}
                   <button
                     onClick={isRecording ? handleStopRecording : handleStartRecording}
-                    className={`w-24 h-24 rounded-full flex items-center justify-center shadow-xl transition-all relative z-10 cursor-pointer ${
-                      isRecording ? 'bg-rose-500 hover:bg-rose-600' : 'bg-[#087F8C] hover:bg-teal-600'
+                    className={`w-24 h-24 rounded-full flex items-center justify-center shadow-xl transition-all relative z-10 cursor-pointer active:scale-95 ${
+                      isRecording ? 'bg-rose-500 hover:bg-rose-600 ring-4 ring-rose-400/40' : 'bg-[#087F8C] hover:bg-teal-600 ring-4 ring-teal-400/30 hover:scale-105'
                     }`}
                   >
                     {isRecording ? (
@@ -679,7 +871,7 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                 </div>
 
                 <p className="text-xs text-teal-100 max-w-xs mx-auto leading-relaxed font-devanagari">
-                  "{t.speakingGuidance}"
+                  {isRecording ? "स्पष्टपणे बोला: उदा. 'बीपी १४०/९५ आहे, वजन ५४ किलो भरले...'" : `मायक्रोफोन सुरू करण्यासाठी वरील बटण दाबा (${lang === 'mr' ? 'मराठी' : 'हिन्दी'})`}
                 </p>
               </div>
 
@@ -687,23 +879,25 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                 {isRecording ? (
                   <button
                     onClick={handleStopRecording}
-                    className="px-6 py-3 rounded-2xl bg-white text-[#172B3A] font-bold text-xs shadow-md cursor-pointer"
+                    className="px-6 py-3 rounded-2xl bg-white text-[#172B3A] font-bold text-xs shadow-md cursor-pointer hover:bg-slate-100 active:scale-95 flex items-center gap-1.5"
                   >
-                    पूर्ण झाले • Finish & Review
+                    <Square className="w-3.5 h-3.5 text-rose-600 fill-current" />
+                    <span>पूर्ण झाले • Finish & Transcribe</span>
                   </button>
                 ) : (
                   <button
                     onClick={handleStartRecording}
-                    className="px-6 py-3 rounded-2xl bg-teal-500 text-white font-bold text-xs shadow-md cursor-pointer font-devanagari"
+                    className="px-6 py-3 rounded-2xl bg-teal-500 text-white font-bold text-xs shadow-md cursor-pointer font-devanagari hover:bg-teal-400 active:scale-95 flex items-center gap-1.5"
                   >
-                    रेकॉर्डिंग सुरू करा
+                    <Mic className="w-4 h-4" />
+                    <span>रेकॉर्डिंग सुरू करा</span>
                   </button>
                 )}
               </div>
             </div>
           )}
 
-          {/* SCREEN 9: TRANSCRIPTION REVIEW */}
+          {/* SCREEN 9: TRANSCRIPTION REVIEW (SARVAM SAARAS LIVE TRANSCRIPT) */}
           {currentScreen === 'transcription_review' && (
             <div className="flex-1 flex flex-col justify-between p-5 bg-white overflow-y-auto">
               <div>
@@ -712,41 +906,79 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                     <FileText className="w-4 h-4 text-[#087F8C]" />
                     <h2 className="font-bold text-sm text-[#172B3A] font-devanagari">आवाजाचे रूपांतर (Transcript)</h2>
                   </div>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-teal-50 text-[#087F8C] font-semibold">
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-teal-50 text-[#087F8C] font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
                     Sarvam Saaras v3
                   </span>
                 </div>
 
-                <div className="mt-4 p-4 rounded-2xl bg-[#F7FAFA] border border-slate-200 space-y-3">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <Volume2 className="w-3.5 h-3.5 text-[#087F8C]" /> 00:44 Sec Audio
-                    </span>
-                    <button className="text-[11px] text-[#087F8C] font-semibold flex items-center gap-1 cursor-pointer">
-                      <Edit3 className="w-3 h-3" /> एडिट करा
-                    </button>
+                {isTranscribing ? (
+                  <div className="my-8 flex flex-col items-center justify-center p-8 bg-teal-50/50 rounded-2xl border border-teal-100 text-center space-y-3">
+                    <Loader2 className="w-8 h-8 text-[#087F8C] animate-spin" />
+                    <div className="font-bold text-xs text-[#172B3A] font-devanagari">
+                      Sarvam Saaras द्वारे आवाज तपासला जात आहे...
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-devanagari">
+                      मराठी/हिंदी उच्चारांचे अचूक शब्दांत रूपांतर चालू आहे.
+                    </p>
                   </div>
-                  <p className="text-xs text-[#172B3A] leading-relaxed font-devanagari">
-                    {simulatedTranscript}
-                  </p>
-                </div>
+                ) : (
+                  <>
+                    <div className="mt-4 p-4 rounded-2xl bg-[#F7FAFA] border border-slate-200 space-y-3">
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        {recordedAudioUrl ? (
+                          <button 
+                            onClick={handleToggleRecordedPlayback}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 text-[#087F8C] font-semibold hover:bg-teal-100 cursor-pointer"
+                          >
+                            {isPlayingRecordedAudio ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                            <span>{isPlayingRecordedAudio ? 'माझा आवाज थांबवा' : 'माझा आवाज ऐका'}</span>
+                          </button>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <Volume2 className="w-3.5 h-3.5 text-[#087F8C]" /> {formatTimer(recordingSeconds)} Audio
+                          </span>
+                        )}
+                        <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">
+                          ✓ Transcribed
+                        </span>
+                      </div>
+                      
+                      <textarea
+                        value={simulatedTranscript}
+                        onChange={(e) => setSimulatedTranscript(e.target.value)}
+                        rows={5}
+                        className="w-full text-xs text-[#172B3A] leading-relaxed font-devanagari p-2 bg-white rounded-xl border border-slate-200 focus:outline-none focus:border-[#087F8C]"
+                        placeholder="येथे रूपांतरित मजकूर दिसेल..."
+                      />
+                    </div>
 
-                <p className="text-[11px] text-slate-400 mt-2 font-devanagari">
-                  * टीप: उच्चार किंवा आवाजातील त्रुटी असल्यास आपण वरील मजकूर दुरुस्त करू शकता.
-                </p>
+                    {transcriptionError && (
+                      <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-1.5 font-devanagari">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                        <span>{transcriptionError}</span>
+                      </div>
+                    )}
+
+                    <p className="text-[11px] text-slate-400 mt-2 font-devanagari">
+                      * टीप: उच्चार किंवा आवाजातील त्रुटी असल्यास आपण वरील मजकूर थेट दुरुस्त करू शकता.
+                    </p>
+                  </>
+                )}
               </div>
 
               <div className="space-y-2 pt-4">
                 <button
+                  disabled={isTranscribing}
                   onClick={() => setCurrentScreen('structured_record')}
-                  className="w-full py-3.5 bg-[#087F8C] text-white rounded-2xl font-bold text-sm shadow-md hover:bg-teal-700 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3.5 bg-[#087F8C] text-white rounded-2xl font-bold text-sm shadow-md hover:bg-teal-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>AI माहिती तयार करा • Extract Record</span>
                 </button>
                 <button
                   onClick={() => setCurrentScreen('recording')}
-                  className="w-full py-2.5 text-xs text-slate-500 font-semibold text-center cursor-pointer"
+                  className="w-full py-2.5 text-xs text-slate-500 font-semibold text-center cursor-pointer hover:text-slate-800"
                 >
                   पुन्हा रेकॉर्ड करा • Re-record
                 </button>
@@ -786,8 +1018,8 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                 <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2">
                   <div className="text-xs font-bold text-slate-400 uppercase">B. लक्षणे (Observations)</div>
                   <div className="text-xs space-y-1 text-slate-700">
-                    <div className="flex justify-between"><span>डोकेदुखी (Headache):</span> <strong className="text-red-600">होय (आहे)</strong></div>
-                    <div className="flex justify-between"><span>पायावर सूज (Swelling):</span> <strong className="text-red-600">होय (हलकी)</strong></div>
+                    <div className="flex justify-between"><span>डोकेदुखी (Headache):</span> <strong className={editedHeadache ? "text-red-600" : "text-emerald-700"}>{editedHeadache ? "होय (आहे)" : "नाही"}</strong></div>
+                    <div className="flex justify-between"><span>पायावर सूज (Swelling):</span> <strong className={editedEdema ? "text-red-600" : "text-emerald-700"}>{editedEdema ? "होय (आहे)" : "नाही"}</strong></div>
                     <div className="flex justify-between"><span>बाळाची हालचाल (Fetal Movement):</span> <strong className="text-emerald-700">नॉर्मल</strong></div>
                   </div>
                 </div>
@@ -834,7 +1066,7 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                   <div className="p-2.5 rounded-xl bg-white border border-teal-100 text-xs text-slate-800 font-devanagari">
                     <strong>आवाजातील मूळ वाक्य:</strong>
                     <div className="mt-1 text-teal-900 font-semibold bg-teal-100/60 p-1.5 rounded">
-                      "तिचा रक्तदाब तपासला असता बीपी १४०/९५ एवढा जास्त भरला आहे."
+                      "बीपी {editedBpSystolic}/{editedBpDiastolic}"
                     </div>
                   </div>
                 </div>
@@ -870,18 +1102,30 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                   <h2 className="font-bold text-sm text-[#172B3A] font-devanagari">वैद्यकीय धोक्याचे इशारे</h2>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 space-y-2">
-                  <div className="flex items-center gap-1.5 text-red-700 font-bold text-xs">
-                    <AlertTriangle className="w-4 h-4" />
-                    धोका: उच्च रक्तदाब (High BP Danger)
+                {editedBpSystolic >= 140 || editedBpDiastolic >= 90 ? (
+                  <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 space-y-2">
+                    <div className="flex items-center gap-1.5 text-red-700 font-bold text-xs">
+                      <AlertTriangle className="w-4 h-4" />
+                      धोका: उच्च रक्तदाब (High BP Danger)
+                    </div>
+                    <p className="text-xs text-slate-700 font-devanagari">
+                      रक्तदाब {editedBpSystolic}/{editedBpDiastolic} भरला असून डोकेदुखीची तक्रार आहे. हा प्री-एक्लॅम्पसियाचा धोका असू शकतो.
+                    </p>
+                    <div className="text-[11px] bg-white p-2 rounded border border-red-100 font-bold text-red-800 font-devanagari">
+                      कृती: तातडीने PHC डॉक्टरांकडे पाठवावे (Referral Required)
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-700 font-devanagari">
-                    रक्तदाब १४०/९५ भरला असून डोकेदुखीची तक्रार आहे. हा प्री-एक्लॅम्पसियाचा धोका असू शकतो.
-                  </p>
-                  <div className="text-[11px] bg-white p-2 rounded border border-red-100 font-bold text-red-800 font-devanagari">
-                    कृती: तातडीने PHC डॉक्टरांकडे पाठवावे (Referral Required)
+                ) : (
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1">
+                    <div className="flex items-center gap-1.5 text-emerald-800 font-bold text-xs">
+                      <CheckCircle className="w-4 h-4" />
+                      सामान्य तपासणी (Normal ANC Findings)
+                    </div>
+                    <p className="text-xs text-slate-600 font-devanagari">
+                      सर्व मोजमापे सामान्य श्रेणीमध्ये आहेत. कोणताही तात्काळ धोका नाही.
+                    </p>
                   </div>
-                </div>
+                )}
 
                 <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
                   <div className="font-bold flex items-center gap-1 font-devanagari">
@@ -944,41 +1188,41 @@ export const AshaPhoneSimulator: React.FC<AshaPhoneSimulatorProps> = ({ onRecord
                       ashaName: selectedBeneficiary.assignedAshaName,
                       language: lang === 'mr' ? 'mr-IN' : 'hi-IN',
                       transcript: simulatedTranscript,
-                      audioDurationSeconds: 44.0,
+                      audioDurationSeconds: recordingSeconds || 44.0,
                       recordedAt: new Date().toISOString(),
                       visitType: 'ANC',
                       isConfirmedByAsha: true,
                       confirmedAt: new Date().toISOString(),
                       anmReviewStatus: 'pending',
                       measurements: {
-                        bloodPressureSystolic: { value: editedBpSystolic, unit: 'mmHg', status: 'concerning', supportingPhrase: 'बीपी १४०/९५' },
-                        bloodPressureDiastolic: { value: editedBpDiastolic, unit: 'mmHg', status: 'concerning', supportingPhrase: 'बीपी १४०/९५' },
-                        weightKg: { value: editedWeight, unit: 'kg', status: 'extracted', supportingPhrase: 'वजन ५४ किलो आहे' },
-                        hemoglobinGDl: { value: editedHb, unit: 'g/dL', status: 'extracted', supportingPhrase: 'हिमोग्लोबिन १०.२ ग्रॅम भरले' }
+                        bloodPressureSystolic: { value: editedBpSystolic, unit: 'mmHg', status: editedBpSystolic >= 140 ? 'concerning' : 'extracted', supportingPhrase: `बीपी ${editedBpSystolic}/${editedBpDiastolic}` },
+                        bloodPressureDiastolic: { value: editedBpDiastolic, unit: 'mmHg', status: editedBpDiastolic >= 90 ? 'concerning' : 'extracted', supportingPhrase: `बीपी ${editedBpSystolic}/${editedBpDiastolic}` },
+                        weightKg: { value: editedWeight, unit: 'kg', status: 'extracted', supportingPhrase: `वजन ${editedWeight} किलो` },
+                        hemoglobinGDl: { value: editedHb, unit: 'g/dL', status: editedHb < 11.0 ? 'concerning' : 'extracted', supportingPhrase: `हिमोग्लोबिन ${editedHb} ग्रॅम` }
                       },
                       pregnancyDetails: {
                         gestationalAgeWeeks: { value: selectedBeneficiary.gestationalWeeks || 28, status: 'extracted', supportingPhrase: '२८ आठवड्यांची' },
                         trimester: { value: 3, status: 'extracted' },
-                        highRiskPregnancy: { value: selectedBeneficiary.highRisk, status: selectedBeneficiary.highRisk ? 'concerning' : 'extracted' }
+                        highRiskPregnancy: { value: selectedBeneficiary.highRisk || editedBpSystolic >= 140, status: (selectedBeneficiary.highRisk || editedBpSystolic >= 140) ? 'concerning' : 'extracted' }
                       },
                       symptoms: {
                         fever: { value: false, status: 'extracted' },
-                        headacheOrBlurredVision: { value: true, status: 'concerning', supportingPhrase: 'डोकेदुखीचा त्रास होत आहे' },
-                        swellingPedalEdema: { value: true, status: 'concerning', supportingPhrase: 'पायावर हलकी सूज आहे' },
+                        headacheOrBlurredVision: { value: editedHeadache, status: editedHeadache ? 'concerning' : 'extracted', supportingPhrase: editedHeadache ? 'डोकेदुखीचा त्रास होत आहे' : undefined },
+                        swellingPedalEdema: { value: editedEdema, status: editedEdema ? 'concerning' : 'extracted', supportingPhrase: editedEdema ? 'पायावर हलकी सूज आहे' : undefined },
                         bleedingOrSpotting: { value: false, status: 'extracted' },
                         fetalMovementNormal: { value: true, status: 'extracted', supportingPhrase: 'बाळाची हालचाल व्यवस्थित आहे' }
                       },
                       interventions: {
                         ifaTabletsGiven: { value: true, status: 'extracted', supportingPhrase: 'आयर्नच्या गोळ्या नियमित घेण्याचा सल्ला दिला' },
                         calciumTabletsGiven: { value: true, status: 'extracted' },
-                        referralRecommended: { value: true, status: 'concerning' }
+                        referralRecommended: { value: editedBpSystolic >= 140, status: editedBpSystolic >= 140 ? 'concerning' : 'extracted' }
                       },
-                      evidenceSpans: [
-                        { fieldName: 'bloodPressureSystolic', extractedValue: editedBpSystolic, startChar: 145, endChar: 154, sourceText: 'बीपी १४०/९५', confidence: 0.99, status: 'concerning' }
+                      evidenceSpans: editedEvidenceSpans.length > 0 ? editedEvidenceSpans : [
+                        { fieldName: 'bloodPressureSystolic', extractedValue: `${editedBpSystolic}/${editedBpDiastolic}`, startChar: 0, endChar: 10, sourceText: `बीपी ${editedBpSystolic}/${editedBpDiastolic}`, confidence: 0.99, status: 'extracted' }
                       ],
-                      validationWarnings: [
+                      validationWarnings: editedBpSystolic >= 140 ? [
                         { field: 'bloodPressure', severity: 'critical', code: 'ELEVATED_BP_DANGER_SIGN', messageEn: 'Elevated BP recorded.', messageMr: 'रक्तदाब जास्त भरला आहे.', messageHi: 'रक्तचाप अधिक है।' }
-                      ]
+                      ] : []
                     };
 
                     mockDataService.addRecord(newRec);

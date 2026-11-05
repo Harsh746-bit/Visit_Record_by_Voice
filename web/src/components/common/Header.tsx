@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Smartphone, Monitor, Split, Globe, LogOut, Bell } from 'lucide-react';
+import { Smartphone, Monitor, Split, Globe, LogOut, Bell, Menu, Mic } from 'lucide-react';
 import { ViewMode } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { NotificationPanel, NotificationItem } from '../ui/NotificationPanel';
@@ -11,14 +11,22 @@ interface HeaderProps {
   lang: string;
   onChangeLang: (lang: string) => void;
   pendingCount?: number;
+  onToggleMobileSidebar?: () => void;
 }
+
+const MODE_TABS = [
+  { id: 'anm',  label: 'ANM Portal',     icon: Monitor,    desc: 'Supervisor' },
+  { id: 'asha', label: 'ASHA Mobile',    icon: Mic,        desc: 'Field Worker' },
+  { id: 'dual', label: 'Dual-View',      icon: Split,      desc: 'Live Demo' },
+] as const;
 
 export const Header: React.FC<HeaderProps> = ({
   viewMode,
   onChangeViewMode,
   lang,
   onChangeLang,
-  pendingCount: _pendingCount = 1
+  pendingCount = 1,
+  onToggleMobileSidebar,
 }) => {
   const { user, logout } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -50,140 +58,156 @@ export const Header: React.FC<HeaderProps> = ({
     }
   ]);
 
-  const displayName = user ? (user.full_name_mr || user.full_name) : 'सुजाता देशमुख (Sujata Deshmukh)';
-  const roleTitle = user ? `${user.role} (${user.phc || 'खेड शिवापूर प्रा.आ.केंद्र'})` : 'ANM Supervisor • खेड शिवापूर उपकेंद्र';
-  const initials = displayName
-    .split(' ')
-    .map(p => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
+  const displayName = user ? (user.full_name_mr || user.full_name) : 'सुजाता देशमुख';
+  const roleTitle = user ? `${user.role} • ${user.phc || 'खेड शिवापूर'}` : 'ANM Supervisor • खेड शिवापूर';
+  const initials = displayName.split(' ').map((p: string) => p[0]).join('').slice(0, 2).toUpperCase();
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <header className="bg-white border-b border-[#E5EBEF] sticky top-0 z-40 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Brand & Identity */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden border border-[#E5EBEF] shadow-xs bg-white flex items-center justify-center shrink-0">
-            <img src={appLogo} alt="Visit Record by Voice" className="w-full h-full object-cover" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-base text-[#172B3A] tracking-tight">Visit Record by Voice</span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E6F4F5] text-[#087F8C] border border-[#087F8C]/20 hidden sm:inline-block">
-                महाराष्ट्र शासन
-              </span>
+    <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-200 shadow-sm">
+      <div className="h-16 w-full px-4 sm:px-6 flex items-center justify-between gap-3">
+
+        {/* ── LEFT: Hamburger (mobile, ANM only) + Brand ── */}
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Mobile hamburger for ANM sidebar */}
+          {viewMode === 'anm' && (
+            <button
+              onClick={onToggleMobileSidebar}
+              className="md:hidden p-2 rounded-xl hover:bg-slate-100 text-slate-700 cursor-pointer transition-colors"
+              aria-label="Open navigation"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* Logo + Brand */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl overflow-hidden border border-slate-300 shadow-sm bg-white shrink-0">
+              <img src={appLogo} alt="Visit Record by Voice" className="w-full h-full object-cover" />
             </div>
-            <p className="text-[11px] text-[#718096] font-devanagari">
-              बोल. पडताळा. नोंदवा. • Frontline AI Healthcare Platform
-            </p>
+            <div className="hidden sm:block">
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-base text-slate-950 tracking-tight whitespace-nowrap">
+                  Visit Record by Voice
+                </span>
+                <span className="hidden lg:inline-flex text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-cyan-100 text-cyan-900 border border-cyan-300 whitespace-nowrap">
+                  महाराष्ट्र शासन
+                </span>
+              </div>
+              <p className="text-xs text-slate-700 font-devanagari font-semibold leading-tight">
+                बोल • पडताळा • नोंदवा
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* View Mode Switcher (ANM Portal vs ASHA Mobile vs Dual) */}
-        <div className="hidden md:flex items-center p-1 bg-slate-100 rounded-xl border border-[#E5EBEF] text-xs">
-          <button
-            onClick={() => onChangeViewMode('anm')}
-            className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === 'anm'
-                ? 'bg-white text-[#087F8C] shadow-xs'
-                : 'text-slate-600 hover:text-[#172B3A]'
-            }`}
-          >
-            <Monitor className="w-4 h-4" />
-            <span>ANM Portal</span>
-          </button>
-
-          <button
-            onClick={() => onChangeViewMode('asha')}
-            className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === 'asha'
-                ? 'bg-white text-[#087F8C] shadow-xs'
-                : 'text-slate-600 hover:text-[#172B3A]'
-            }`}
-          >
-            <Smartphone className="w-4 h-4" />
-            <span>ASHA Mobile</span>
-          </button>
-
-          <button
-            onClick={() => onChangeViewMode('dual')}
-            className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === 'dual'
-                ? 'bg-white text-[#087F8C] shadow-xs'
-                : 'text-slate-600 hover:text-[#172B3A]'
-            }`}
-          >
-            <Split className="w-4 h-4" />
-            <span>Live Dual-View</span>
-          </button>
+        {/* ── CENTER: Mode Switcher ── */}
+        <div className="hidden sm:flex items-center gap-1.5 p-1.5 bg-slate-200/80 rounded-2xl border border-slate-300">
+          {MODE_TABS.map(tab => {
+            const Icon = tab.icon;
+            const isActive = viewMode === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onChangeViewMode(tab.id)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold transition-all duration-150 cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? 'bg-cyan-700 text-white shadow-md'
+                    : 'text-slate-800 hover:text-slate-950 hover:bg-white/80'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+                {tab.id === 'anm' && pendingCount > 0 && !isActive && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white" />
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Right Section: Sync Status, Notifications, Language & User */}
-        <div className="flex items-center gap-3">
-          {/* Real-time WebSocket Connectivity Indicator */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E1F6ED] border border-[#15966A]/30 text-[11px] font-semibold text-[#0F6E4E]">
-            <span className="w-2 h-2 rounded-full bg-[#15966A] animate-pulse"></span>
-            <span>Live Synced</span>
+        {/* ── RIGHT: Status + Notifications + Lang + User ── */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          {/* Live synced pill */}
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 border border-emerald-300 text-xs font-bold text-emerald-900">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+            Live Synced
           </div>
 
-          {/* Notification Bell */}
+          {/* Notifications */}
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 rounded-xl text-slate-500 hover:text-[#087F8C] hover:bg-slate-100 transition-colors cursor-pointer"
-              title="सूचना (Notifications)"
+              className="relative p-2.5 rounded-xl text-slate-700 hover:text-cyan-800 hover:bg-cyan-100 transition-colors cursor-pointer border border-slate-200"
+              aria-label="Notifications"
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#DC5B5B] ring-2 ring-white"></span>
+                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-red-600 ring-2 ring-white" />
               )}
             </button>
-
             <NotificationPanel
               isOpen={showNotifications}
               onClose={() => setShowNotifications(false)}
               notifications={notifications}
-              onMarkAllAsRead={() => {
-                setNotifications(notifications.map(n => ({ ...n, read: true })));
-              }}
+              onMarkAllAsRead={() => setNotifications(notifications.map(n => ({ ...n, read: true })))}
             />
           </div>
 
-          {/* Language Selector */}
-          <div className="flex items-center gap-1 text-xs border border-[#E5EBEF] rounded-xl px-2.5 py-1 bg-white">
-            <Globe className="w-3.5 h-3.5 text-slate-400" />
+          {/* Language picker */}
+          <div className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm border-2 border-slate-300 rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 bg-white hover:border-slate-400 transition-colors font-bold text-slate-900 shadow-2xs">
+            <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-700 shrink-0" />
             <select
               value={lang}
-              onChange={(e) => onChangeLang(e.target.value)}
-              className="text-xs bg-transparent text-slate-700 font-medium focus:outline-none cursor-pointer"
+              onChange={e => onChangeLang(e.target.value)}
+              className="text-xs sm:text-sm bg-transparent text-slate-900 font-extrabold focus:outline-none cursor-pointer"
             >
-              <option value="mr">मराठी (Marathi)</option>
-              <option value="hi">हिन्दी (Hindi)</option>
+              <option value="mr">मराठी</option>
+              <option value="hi">हिन्दी</option>
               <option value="en">English</option>
             </select>
           </div>
 
-          {/* User Badge & Logout */}
-          <div className="hidden sm:flex items-center gap-2.5 pl-2 border-l border-[#E5EBEF]">
-            <div className="w-8 h-8 rounded-full bg-[#E6F4F5] text-[#087F8C] font-bold flex items-center justify-center text-xs border border-[#087F8C]/20">
+          {/* User + logout */}
+          <div className="hidden md:flex items-center gap-2.5 pl-2.5 border-l-2 border-slate-300">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-600 to-cyan-800 text-white font-extrabold flex items-center justify-center text-sm shadow-brand shrink-0">
               {initials}
             </div>
-            <div className="text-left text-xs">
-              <div className="font-bold text-[#172B3A] line-clamp-1">{displayName}</div>
-              <span className="text-[10px] text-[#718096] line-clamp-1">{roleTitle}</span>
+            <div className="text-left hidden lg:block">
+              <div className="font-bold text-sm text-slate-950 leading-tight line-clamp-1">{displayName}</div>
+              <div className="text-xs text-slate-700 font-semibold line-clamp-1">{roleTitle}</div>
             </div>
             <button
               onClick={() => logout()}
-              title="लॉग आऊट (Logout)"
-              className="p-1.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+              title="Logout"
+              className="p-2 text-slate-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer ml-1"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-5 h-5" />
             </button>
           </div>
         </div>
+      </div>
+
+      {/* ── MOBILE MODE TABS (shown below header on xs screens) ── */}
+      <div className="sm:hidden flex items-center gap-1.5 px-3 py-2 bg-slate-100 border-b border-slate-300">
+        {MODE_TABS.map(tab => {
+          const Icon = tab.icon;
+          const isActive = viewMode === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onChangeViewMode(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-cyan-700 text-white shadow-sm'
+                  : 'text-slate-800 bg-white border border-slate-300'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {tab.label.split(' ')[0]}
+            </button>
+          );
+        })}
       </div>
     </header>
   );

@@ -21,12 +21,14 @@ interface VisitRecordsQueueViewProps {
   records: StructuredVisit[];
   onSelectRecord: (record: StructuredVisit) => void;
   filterPendingOnly?: boolean;
+  lang?: 'mr' | 'hi' | 'en';
 }
 
 export const VisitRecordsQueueView: React.FC<VisitRecordsQueueViewProps> = ({
   records,
   onSelectRecord,
-  filterPendingOnly = false
+  filterPendingOnly = false,
+  lang = 'mr'
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(filterPendingOnly ? 'pending' : 'all');

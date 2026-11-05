@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowLeft, 
   RotateCcw, 
@@ -9,11 +9,12 @@ import {
   Activity, 
   Heart, 
   Pill, 
-  Sparkles,
-  FileCheck2,
-  Play,
-  Pause,
-  CheckCircle2
+  Sparkles, 
+  FileCheck2, 
+  Play, 
+  Pause, 
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { StructuredVisit } from '../../types';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -21,6 +22,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { TranscriptViewer } from '../../components/ui/TranscriptViewer';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { MOCK_BENEFICIARIES } from '../../data/mockData';
+import { apiClient } from '../../services/apiClient';
 
 interface SplitEvidenceReviewViewProps {
   record: StructuredVisit;
@@ -37,9 +39,80 @@ export const SplitEvidenceReviewView: React.FC<SplitEvidenceReviewViewProps> = (
   const [reviewNotes, setReviewNotes] = useState(record.anmReviewNotes || '');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  
+  // Real HTML5 Audio Playback state
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const beneficiary = MOCK_BENEFICIARIES.find(b => b.id === record.beneficiaryId);
+
+  // Clean up audio on unmount or when record changes
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [record.recordId]);
+
+  const handleTogglePlay = async () => {
+    // 1. If currently playing, pause it
+    if (isPlayingAudio && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    // 2. If audio element already exists and is paused, resume playback
+    if (audioRef.current && !isPlayingAudio) {
+      audioRef.current.play();
+      setIsPlayingAudio(true);
+      return;
+    }
+
+    // 3. Otherwise, fetch synthesized Marathi audio from Sarvam Bulbul via backend
+    setIsLoadingAudio(true);
+    try {
+      const blob = await apiClient.synthesizeSpeech(
+        record.transcript, 
+        record.language === 'hi-IN' ? 'hi-IN' : 'mr-IN'
+      );
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+
+      audio.onplay = () => setIsPlayingAudio(true);
+      audio.onpause = () => setIsPlayingAudio(false);
+      audio.onended = () => {
+        setIsPlayingAudio(false);
+        audioRef.current = null;
+      };
+      audio.onerror = (e) => {
+        console.error("Audio playback error:", e);
+        setIsPlayingAudio(false);
+        setIsLoadingAudio(false);
+      };
+
+      audioRef.current = audio;
+      await audio.play();
+      setIsPlayingAudio(true);
+    } catch (err) {
+      console.warn("Sarvam TTS request failed, attempting browser speech synthesis fallback:", err);
+      // Fallback: Web Speech API
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(record.transcript);
+        utterance.lang = record.language === 'hi-IN' ? 'hi-IN' : 'mr-IN';
+        utterance.onstart = () => setIsPlayingAudio(true);
+        utterance.onend = () => setIsPlayingAudio(false);
+        utterance.onerror = () => setIsPlayingAudio(false);
+        window.speechSynthesis.speak(utterance);
+      }
+    } finally {
+      setIsLoadingAudio(false);
+    }
+  };
 
   const handleApprove = () => {
     onUpdateStatus(record.recordId, 'reviewed', reviewNotes || 'Verified and approved by ANM Supervisor.');
@@ -185,16 +258,25 @@ export const SplitEvidenceReviewView: React.FC<SplitEvidenceReviewViewProps> = (
             <div className="p-3.5 bg-[#F5F8FA] rounded-xl border border-[#E5EBEF] flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button 
-                  onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all shadow-xs cursor-pointer active:scale-95 ${
+                  onClick={handleTogglePlay}
+                  disabled={isLoadingAudio}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-60 ${
                     isPlayingAudio ? 'bg-[#E8A23A]' : 'bg-[#087F8C] hover:bg-[#065A63]'
                   }`}
-                  title={isPlayingAudio ? 'Pause Audio' : 'Play Spoken Encounter Audio'}
+                  title={isPlayingAudio ? 'Pause Audio' : 'Play Spoken Encounter Audio (Sarvam Bulbul)'}
                 >
-                  {isPlayingAudio ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                  {isLoadingAudio ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : isPlayingAudio ? (
+                    <Pause className="w-4 h-4" />
+                  ) : (
+                    <Play className="w-4 h-4 ml-0.5" />
+                  )}
                 </button>
                 <div className="text-xs">
-                  <div className="font-bold text-[#172B3A]">Encounter Voice Capture</div>
+                  <div className="font-bold text-[#172B3A]">
+                    {isLoadingAudio ? 'Loading Voice Stream...' : isPlayingAudio ? 'Playing Spoken Encounter...' : 'Encounter Voice Capture'}
+                  </div>
                   <div className="text-[#718096] text-[11px] font-mono">{record.audioDurationSeconds}s • 16 kHz Mono PCM</div>
                 </div>
               </div>
@@ -221,7 +303,7 @@ export const SplitEvidenceReviewView: React.FC<SplitEvidenceReviewViewProps> = (
             selectedSpan={activeSpan}
             onSpanClick={(span) => setSelectedField(span.fieldName)}
             language={record.language}
-            onPlayAudio={() => setIsPlayingAudio(!isPlayingAudio)}
+            onPlayAudio={handleTogglePlay}
             isPlaying={isPlayingAudio}
           />
 

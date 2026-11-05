@@ -208,6 +208,87 @@ class ApiClient {
   async getWorkers(): Promise<{ workers: any[]; total: number }> {
     return this.request<{ workers: any[]; total: number }>('/workers');
   }
+
+  // --- AUDIO SYNTHESIS & PLAYBACK (SARVAM BULBUL) ---
+  async synthesizeSpeech(text: string, language: string = 'mr-IN'): Promise<Blob> {
+    const url = `${API_BASE_URL}/audio/synthesize`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ text, language })
+    });
+    if (!response.ok) {
+      throw new Error(`Audio synthesis failed: ${response.statusText}`);
+    }
+    return response.blob();
+  }
+
+  // --- SPEECH RECOGNITION (SARVAM SAARAS) ---
+  async transcribeAudio(audioBlob: Blob, language: string = 'mr-IN'): Promise<{
+    transcript: string;
+    language: string;
+    confidence: number;
+    model: string;
+    words?: any[];
+  }> {
+    const url = `${API_BASE_URL}/audio/transcribe`;
+    const formData = new FormData();
+    formData.append('audio_file', audioBlob, 'voice_capture.wav');
+    formData.append('language', language);
+
+    const token = this.getAccessToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+
+    if (!response.ok) {
+      let detail = `Transcription failed (${response.status})`;
+      try {
+        const errJson = await response.json();
+        detail = errJson.detail || detail;
+      } catch {}
+      throw new Error(detail);
+    }
+
+    return response.json();
+  }
+
+  // --- CLINICAL EXTRACTION ---
+  async extractRecord(transcript: string, language: string = 'mr-IN', beneficiaryId?: string): Promise<any> {
+    const url = `${API_BASE_URL}/visits/extract`;
+    const token = this.getAccessToken();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json'
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        transcript,
+        language,
+        beneficiary_id: beneficiaryId
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Clinical extraction failed');
+    }
+
+    return response.json();
+  }
 }
 
 export const apiClient = new ApiClient();

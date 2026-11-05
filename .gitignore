@@ -22,6 +22,8 @@ local.properties
 # Databases & Local state
 *.db
 *.sqlite3
+*.wav
+*.mp3
 .env
 .env.local
 .DS_Store

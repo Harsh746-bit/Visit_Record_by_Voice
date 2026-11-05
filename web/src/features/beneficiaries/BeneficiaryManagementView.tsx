@@ -17,18 +17,22 @@ import { SearchBar } from '../../components/ui/SearchBar';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { BeneficiaryCard } from '../../components/ui/BeneficiaryCard';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { translations } from '../../i18n/translations';
 
 interface BeneficiaryManagementViewProps {
   beneficiaries: Beneficiary[];
   records: StructuredVisit[];
   onSelectRecord: (record: StructuredVisit) => void;
+  lang?: 'mr' | 'hi' | 'en';
 }
 
 export const BeneficiaryManagementView: React.FC<BeneficiaryManagementViewProps> = ({
   beneficiaries,
   records,
-  onSelectRecord
+  onSelectRecord,
+  lang = 'mr'
 }) => {
+  const t = translations[lang];
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterRisk, setFilterRisk] = useState<string>('all');
@@ -58,8 +62,8 @@ export const BeneficiaryManagementView: React.FC<BeneficiaryManagementViewProps>
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        title="Maternal Beneficiary Directory"
-        subtitle="Tracking antenatal & postnatal mothers across rural PHCs and sub-centres in Maharashtra (RCH Portal Synced)."
+        title={lang === 'mr' ? 'माता लाभार्थी यादी (Beneficiary Registry)' : lang === 'hi' ? 'मातृ लाभार्थी सूची (Beneficiary Registry)' : 'Maternal Beneficiary Directory'}
+        subtitle={lang === 'mr' ? 'महाराष्ट्र ग्रामीण प्राथमिक आरोग्य केंद्र आणि उपकेंद्रांमधील गरोदर व बाळंतपण मातांची नोंदणी (RCH पोर्टल सिंक).' : lang === 'hi' ? 'महाराष्ट्र ग्रामीण प्राथमिक स्वास्थ्य केंद्रों व उपकेंद्रों में गर्भवती व प्रसूता माताओं की ट्रैकिंग (RCH पोर्टल सिंक)।' : 'Tracking antenatal & postnatal mothers across rural PHCs and sub-centres in Maharashtra (RCH Portal Synced).'}
         badge={
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#E6F4F5] text-[#087F8C] border border-[#087F8C]/20">

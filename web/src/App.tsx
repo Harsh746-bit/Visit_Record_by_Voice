@@ -10,23 +10,27 @@ import { VisitRecordsQueueView } from './features/visits/VisitRecordsQueueView';
 import { SplitEvidenceReviewView } from './features/evidence/SplitEvidenceReviewView';
 import { ReportsAnalyticsView } from './features/reports/ReportsAnalyticsView';
 import { AnmSettingsView } from './features/settings/AnmSettingsView';
+import { AshaVisitFlowView } from './features/asha/AshaVisitFlowView';
 import { AshaPhoneSimulator } from './features/simulator/AshaPhoneSimulator';
 import { LoginView } from './features/auth/LoginView';
 import { liveDataService } from './services/liveDataService';
 import { ViewMode, AnmNavigationTab, StructuredVisit, Beneficiary, AshaWorker } from './types';
 import { MOCK_WORKERS, MOCK_BENEFICIARIES, MOCK_VISIT_RECORDS } from './data/mockData';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Smartphone, LayoutList } from 'lucide-react';
+import { translations } from './i18n/translations';
 
 function AppContent() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [guestMode, setGuestMode] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('anm');
+  const [viewMode, setViewMode] = useState<ViewMode>('asha');
+  const [ashaDisplayMode, setAshaDisplayMode] = useState<'workflow' | 'phone'>('workflow');
   const [activeTab, setActiveTab] = useState<AnmNavigationTab>('overview');
   const [selectedRecord, setSelectedRecord] = useState<StructuredVisit | null>(null);
   const [records, setRecords] = useState<StructuredVisit[]>([...MOCK_VISIT_RECORDS]);
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([...MOCK_BENEFICIARIES]);
   const [workers, setWorkers] = useState<AshaWorker[]>([...MOCK_WORKERS]);
   const [lang, setLang] = useState<'mr' | 'hi' | 'en'>('mr');
+  const t = translations[lang];
 
   // Load live data from FastAPI PostgreSQL backend
   useEffect(() => {
@@ -93,18 +97,61 @@ function AppContent() {
       lang={lang}
       onChangeLang={(l) => setLang(l as 'mr' | 'hi' | 'en')}
     >
-      {/* MODE 1: ASHA MOBILE PHONE SIMULATOR ONLY */}
+      {/* MODE 1: ASHA FRONTLINE WORKFLOW */}
       {viewMode === 'asha' && (
-        <div className="flex flex-col items-center justify-center">
-          <div className="max-w-md w-full mb-3 text-center">
-            <span className="text-xs font-bold text-[#087F8C] uppercase tracking-wider">
-              Frontline ASHA Worker Mobile Interface
-            </span>
-            <p className="text-xs text-slate-500">
-              Interactive smartphone simulator in Marathi & Hindi. Test voice recording, transcription review, and traceable evidence verification.
-            </p>
+        <div className="space-y-4 w-full">
+          {/* Sub-navigation: Workflow UI vs Mobile Phone Frame */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white px-5 py-3.5 rounded-2xl border border-slate-200 shadow-clinical-card w-full">
+            <div>
+              <span className="font-extrabold text-sm text-slate-900">
+                {t.ashaFlowHeader}
+              </span>
+              <p className="text-xs text-slate-600 font-devanagari font-bold mt-0.5">
+                {t.ashaFlowRoadmapSub}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl text-xs font-semibold self-start sm:self-auto shrink-0 border border-slate-200">
+              <button
+                onClick={() => setAshaDisplayMode('workflow')}
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+                  ashaDisplayMode === 'workflow'
+                    ? 'bg-white text-cyan-700 shadow-sm font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <LayoutList className="w-4 h-4" />
+                <span>{t.roadmapFullUi}</span>
+              </button>
+              <button
+                onClick={() => setAshaDisplayMode('phone')}
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+                  ashaDisplayMode === 'phone'
+                    ? 'bg-white text-cyan-700 shadow-sm font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Smartphone className="w-4 h-4" />
+                <span>{t.roadmapPhoneFrame}</span>
+              </button>
+            </div>
           </div>
-          <AshaPhoneSimulator onRecordSubmitted={handleNewRecordSubmitted} />
+
+          {ashaDisplayMode === 'workflow' ? (
+            <AshaVisitFlowView
+              onRecordCreated={handleNewRecordSubmitted}
+              onOpenRecordDetail={(rec) => {
+                setSelectedRecord(rec);
+                setViewMode('anm');
+              }}
+              lang={lang}
+              onChangeLang={(l) => setLang(l as 'mr' | 'hi' | 'en')}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-2">
+              <AshaPhoneSimulator onRecordSubmitted={handleNewRecordSubmitted} />
+            </div>
+          )}
         </div>
       )}
 
@@ -126,6 +173,7 @@ function AppContent() {
                   beneficiaries={beneficiaries}
                   onSelectRecord={(rec) => setSelectedRecord(rec)}
                   onNavigateTab={(tab) => setActiveTab(tab)}
+                  lang={lang}
                 />
               )}
               {activeTab === 'workers' && (
@@ -136,12 +184,14 @@ function AppContent() {
                   beneficiaries={beneficiaries}
                   records={records}
                   onSelectRecord={(rec) => setSelectedRecord(rec)}
+                  lang={lang}
                 />
               )}
               {activeTab === 'records' && (
                 <VisitRecordsQueueView
                   records={records}
                   onSelectRecord={(rec) => setSelectedRecord(rec)}
+                  lang={lang}
                 />
               )}
               {activeTab === 'review_queue' && (
@@ -149,6 +199,7 @@ function AppContent() {
                   records={records}
                   onSelectRecord={(rec) => setSelectedRecord(rec)}
                   filterPendingOnly={true}
+                  lang={lang}
                 />
               )}
               {activeTab === 'reports' && (
@@ -195,7 +246,7 @@ function AppContent() {
           <div className="xl:col-span-5 flex flex-col items-center">
             <div className="w-full max-w-[390px] mb-2 flex items-center justify-between text-xs text-slate-500">
               <span className="font-bold text-[#087F8C]">Frontline ASHA Worker Device</span>
-              <span>(Interactive Simulation)</span>
+              <span>(Live Microphone Enabled)</span>
             </div>
             <AshaPhoneSimulator onRecordSubmitted={handleNewRecordSubmitted} />
           </div>

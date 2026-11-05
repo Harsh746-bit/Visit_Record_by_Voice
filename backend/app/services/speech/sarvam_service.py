@@ -49,8 +49,20 @@ class SarvamSpeechService:
             # Map simplified codes to official Sarvam format
             code = "mr-IN" if "mr" in language_code.lower() else "hi-IN"
             
+            # Infer content type from file extension
+            content_type = "audio/wav"
+            lower_name = (file_name or "").lower()
+            if lower_name.endswith(".webm"):
+                content_type = "audio/webm"
+            elif lower_name.endswith(".mp3"):
+                content_type = "audio/mpeg"
+            elif lower_name.endswith(".m4a") or lower_name.endswith(".mp4"):
+                content_type = "audio/mp4"
+            elif lower_name.endswith(".ogg"):
+                content_type = "audio/ogg"
+
             # File tuple: (filename, bytes, content_type)
-            file_payload = (file_name, audio_bytes, "audio/wav")
+            file_payload = (file_name or "audio.wav", audio_bytes, content_type)
             
             response = self._client.speech_to_text.transcribe(
                 file=file_payload,
